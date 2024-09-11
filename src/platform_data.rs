@@ -1,10 +1,11 @@
-mod platform_data {
+pub mod platform_data {
+    #[derive(Debug)]
     pub struct PlatformData {
-        sdk_type: str,
-        sdk_version: str,
-        platform_version: str,
-        device_model: str,
-        platform: str,
-        hostname: str,
+        sdk_type: String,
+        sdk_version: String,
+        platform_version: String,
+        device_model: String,
+        platform: String,
+        hostname: String,
     }
 }

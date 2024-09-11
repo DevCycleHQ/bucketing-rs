@@ -1,7 +1,10 @@
 mod filters {
     use std::collections::HashMap;
+
     use serde::{Deserialize, Serialize};
+
     use crate::constants;
+    use crate::user::user::PopulatedUser;
 
     #[derive(Serialize, Deserialize, Debug)]
     enum FilterType {
@@ -9,8 +12,6 @@ mod filters {
         User,
         OptIn,
     }
-
-
     #[derive(Serialize, Deserialize, Debug)]
     enum FilterSubType {
         UserId,
@@ -23,87 +24,155 @@ mod filters {
         DeviceModel,
         CustomData,
     }
-
     pub trait FilterOrOperator {
-        fn evaluate(audiences: &HashMap<str, NoIdAudience>, user: crate::user, client_custom_data: &HashMap<str, std::any>) -> bool;
+        fn evaluate(self: &Self, audiences: &HashMap<String, NoIdAudience>, user: &mut PopulatedUser, client_custom_data: &HashMap<String, serde_json::Value>) -> bool;
     }
-
+    type MixedFilters = Vec<Box<dyn FilterOrOperator>>;
     struct PassFilter {}
     impl PassFilter {
-        pub fn evaluate(audiences: &HashMap<str, NoIdAudience>, user: crate::user, client_custom_data: HashMap<str, std::any>) -> bool {
+        pub fn evaluate(audiences: &HashMap<String, NoIdAudience>, user: &mut PopulatedUser, client_custom_data: HashMap<String, serde_json::Value>) -> bool {
             true
         }
     }
     struct FailFilter {}
     impl FailFilter {
-        pub fn evaluate(audiences: &HashMap<str, NoIdAudience>, user: crate::user, client_custom_data: HashMap<str, std::any>) -> bool {
+        pub fn evaluate(audiences: &HashMap<String, NoIdAudience>, user: PopulatedUser, client_custom_data: HashMap<String, serde_json::Value>) -> bool {
             false
         }
     }
-
     type AllFilter = PassFilter;
+    type OptInFilter = FailFilter;
 
-
-    type MixedFilters = Vec<dyn FilterOrOperator>;
-
-
-
-    #[derive(Serialize, Deserialize, Debug)]
     pub struct AudienceOperator {
-        operator: str,
+        operator: String,
         filters: MixedFilters,
     }
 
     impl AudienceOperator {
-        pub fn evaluate(&self, audiences: &HashMap<str, NoIdAudience>, user: crate::user, client_custom_data: &HashMap<str, std::any>) -> bool {
+        pub fn get_operator(&self) -> String {
+            return self.operator.clone()
+        }
+
+        pub fn get_filters(&self) -> &MixedFilters {
+            return &self.filters
+        }
+
+        pub fn evaluate(&self, audiences: &HashMap<String, NoIdAudience>, user: &mut PopulatedUser, client_custom_data: &HashMap<String, serde_json::Value>) -> bool {
             if self.filters.len() == 0 {
                 return false;
             }
             if self.operator == constants::OPERATOR_AND {
-                for filter in self.filters {
+                for filter in self.get_filters() {
                     if !filter.evaluate(audiences, user, client_custom_data) {
                         return false;
                     }
                 }
                 return true;
             } else if self.operator == constants::OPERATOR_OR {
-                for filter in self.filters {
+                for filter in self.get_filters() {
                     if filter.evaluate(audiences, user, client_custom_data) {
                         return true;
                     }
                 }
                 return false;
+            } else {
+                return false;
             }
         }
     }
-
-
-    #[derive(Serialize, Deserialize, Debug)]
     pub struct NoIdAudience<'a> {
         filters: &'a AudienceOperator,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
     struct BaseFilter {
         _type: FilterType,
         sub_type: FilterSubType,
-        comparator: str,
-        operator: str,
+        comparator: &'static String,
+        operator: &'static String,
     }
 
     struct UserFilter {
         base: BaseFilter,
-        values: Vec<std::any>,
-
-        CompiledStringVals: [str],
-        CompiledBoolVals   []bool,
-        CompiledNumVals    []float64,
-
+        values: Vec<serde_json::Value>,
+        compiled_string_vals: Vec<String>,
+        compiled_bool_vals:   Vec<bool>,
+        compiled_num_vals:    Vec<f64>,
     }
+
+    impl UserFilter {
+        pub fn evaluate(&self, audiences: &HashMap<String, NoIdAudience>, user: PopulatedUser, client_custom_data: &HashMap<String, serde_json::Value>) -> bool {
+            false
+        }
+
+        pub fn compile(&mut self) -> Result<(), String> {
+            if self.values.len() == 0 {
+                return Ok(());
+            }
+            let first_value = self.values.get(0);
+            match first_value {
+                Some(value) => {
+                    match value {
+                        serde_json::Value::Bool(_) => {
+                            let mut bool_values: Vec<bool> = Vec::new();
+                            for value in self.values {
+                                match value {
+                                    serde_json::Value::Bool(val) => {
+                                        bool_values.push(val);
+                                    }
+                                    _ => {
+                                        return Err(format!("Filter values must be all of the same type. Expected: bool, got: {:?}", value));
+                                    }
+                                }
+                            }
+                            self.compiled_bool_vals = bool_values;
+                            return Ok(());
+                        }
+                        serde_json::Value::String(_) => {
+                            let mut string_values: Vec<String> = Vec::new();
+                            for value in self.values {
+                                match value {
+                                    serde_json::Value::String(val) => {
+                                        string_values.push(val);
+                                    }
+                                    _ => {
+                                        return Err(format!("Filter values must be all of the same type. Expected: string, got: {:?}", value));
+                                    }
+                                }
+                            }
+                            self.compiled_string_vals = string_values;
+                            return Ok(());
+                        }
+                        serde_json::Value::Number(_) => {
+                            let mut num_values: Vec<f64> = Vec::new();
+                            for value in self.values {
+                                match value {
+                                    serde_json::Value::Number(val) => {
+                                        num_values.push(val.as_f64().unwrap());
+                                    }
+                                    _ => {
+                                        return Err(format!("Filter values must be all of the same type. Expected: number, got: {:?}", value));
+                                    }
+                                }
+                            }
+                            self.compiled_num_vals = num_values;
+                            return Ok(());
+                        }
+                        _ => {
+                            return Err(format!("Filter values must be of type bool, string, or number. Got: {:?}", value));
+                        }
+                    }
+                }
+                None => {
+                    return Ok(());
+                }
+            }
+        }
+    }
+
     trait Filter {
         fn get_type(&self) -> FilterType;
         fn get_sub_type(&self) -> FilterSubType;
-        fn get_comparator(&self) -> str;
-        fn get_operator(&self) -> str;
+        fn get_comparator(&self) -> &String;
+        fn get_operator(&self) -> &String;
     }
 }

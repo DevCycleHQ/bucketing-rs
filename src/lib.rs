@@ -1,11 +1,11 @@
-mod murmurhash;
-mod constants;
-mod versioncompare;
+pub mod murmurhash;
+pub mod constants;
+pub mod versioncompare;
 
-mod filters;
-mod feature;
-mod user;
-mod platform_data;
+pub mod filters;
+pub mod feature;
+pub mod user;
+pub mod platform_data;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

@@ -8,3 +8,4 @@ fasthash = { version = "0.4.0"}
 regex = "1.10.6"
 serde = { version = "1.0.210", features = ["derive"] }
 chrono = "0.4.38"
+serde_json = "1.0.128"

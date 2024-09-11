@@ -1,24 +1,24 @@
 mod feature {
     pub struct VariationVariable {
-        var: str,     // `json:"_var"`
-        value: std::any, // {} `json:"value"`
+        var: String,     // `json:"_var"`
+        value: serde_json::Value, // {} `json:"value"`
     }
 
     pub struct Variation {
-        id: str,
-        name: str,
-        key: str,
-        variables: [VariationVariable],
+        id: String,
+        name: String,
+        key: String,
+        variables: Vec<VariationVariable>,
     }
 
     pub struct FeatureConfiguration {}
 
     pub struct ConfigFeature {
-        id: str,
-        featuretype: str,
-        key: str,
-        variations: [Variation],
+        id: String,
+        featuretype: String,
+        key: String,
+        variations: Vec<Variation>,
         configuration: FeatureConfiguration,
-        settings: str,
+        settings: String,
     }
 }
