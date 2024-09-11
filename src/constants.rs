@@ -1,44 +1,50 @@
-const OPERATOR_AND: &str = "and";
-const OPERATOR_OR: &str = "or";
+mod constants {
+
+}
+pub const OPERATOR_AND: &str = "and";
+pub const OPERATOR_OR: &str = "or";
 
 
-const VARIABLE_EVALUATED_EVENT: &str = "variableEvaluated";
-const VARIABLE_DEFAULTED_EVENT: &str = "variableDefaulted";
-const AGG_VARIABLE_EVALUATED_EVENT: &str = "aggVariableEvaluated";
-const AGG_VARIABLE_DEFAULTED_EVENT: &str = "aggVariableDefaulted";
+pub const VARIABLE_EVALUATED_EVENT: &str = "variableEvaluated";
+pub const VARIABLE_DEFAULTED_EVENT: &str = "variableDefaulted";
+pub const AGG_VARIABLE_EVALUATED_EVENT: &str = "aggVariableEvaluated";
+pub const AGG_VARIABLE_DEFAULTED_EVENT: &str = "aggVariableDefaulted";
 
 
-const TYPE_ALL: &str = "all";
-const TYPE_USER: &str = "user";
-const TYPE_OPT_IN: &str = "optIn";
-const TYPE_AUDIENCE_MATCH: &str = "audienceMatch";
+pub const TYPE_ALL: &str = "all";
+pub const TYPE_USER: &str = "user";
+pub const TYPE_OPT_IN: &str = "optIn";
+pub const TYPE_AUDIENCE_MATCH: &str = "audienceMatch";
 
 
-const SUB_TYPE_USER_ID: &str = "user_id";
-const SUB_TYPE_EMAIL: &str = "email";
-const SUB_TYPE_IP: &str = "ip";
-const SUB_TYPE_COUNTRY: &str = "country";
-const SUB_TYPE_PLATFORM: &str = "platform";
-const SUB_TYPE_PLATFORM_VERSION: &str = "platformVersion";
-const SUB_TYPE_APP_VERSION: &str = "appVersion";
-const SUB_TYPE_DEVICE_MODEL: &str = "deviceModel";
-const SUB_TYPE_CUSTOM_DATA: &str = "customData";
+pub const SUB_TYPE_USER_ID: &str = "user_id";
+pub const SUB_TYPE_EMAIL: &str = "email";
+pub const SUB_TYPE_IP: &str = "ip";
+pub const SUB_TYPE_COUNTRY: &str = "country";
+pub const SUB_TYPE_PLATFORM: &str = "platform";
+pub const SUB_TYPE_PLATFORM_VERSION: &str = "platformVersion";
+pub const SUB_TYPE_APP_VERSION: &str = "appVersion";
+pub const SUB_TYPE_DEVICE_MODEL: &str = "deviceModel";
+pub const SUB_TYPE_CUSTOM_DATA: &str = "customData";
 
-const COMPARATOR_EQUAL: &str = ":&str =";
-const COMPARATOR_NOT_EQUAL: &str = "!:&str =";
-const COMPARATOR_GREATER: &str = ">";
-const COMPARATOR_GREATER_EQUAL: &str = ">:&str =";
-const COMPARATOR_LESS: &str = "<";
-const COMPARATOR_LESS_EQUAL: &str = "<:&str =";
-const COMPARATOR_EXIST: &str = "exist";
-const COMPARATOR_NOT_EXIST: &str = "!exist";
-const COMPARATOR_CONTAIN: &str = "contain";
-const COMPARATOR_NOT_CONTAIN: &str = "!contain";
-const DATA_KEY_TYPE_STRING: &str = "String";
-const DATA_KEY_TYPE_BOOLEAN: &str = "Boolean";
-const DATA_KEY_TYPE_NUMBER: &str = "Number";
+pub const COMPARATOR_EQUAL: &str = ":&str =";
+pub const COMPARATOR_NOT_EQUAL: &str = "!:&str =";
+pub const COMPARATOR_GREATER: &str = ">";
+pub const COMPARATOR_GREATER_EQUAL: &str = ">:&str =";
+pub const COMPARATOR_LESS: &str = "<";
+pub const COMPARATOR_LESS_EQUAL: &str = "<:&str =";
+pub const COMPARATOR_EXIST: &str = "exist";
+pub const COMPARATOR_NOT_EXIST: &str = "!exist";
+pub const COMPARATOR_CONTAIN: &str = "contain";
+pub const COMPARATOR_NOT_CONTAIN: &str = "!contain";
+pub const DATA_KEY_TYPE_STRING: &str = "String";
+pub const DATA_KEY_TYPE_BOOLEAN: &str = "Boolean";
+pub const DATA_KEY_TYPE_NUMBER: &str = "Number";
 
-const VARIABLE_TYPES_STRING: &str = "String";
-const VARIABLE_TYPES_NUMBER: &str = "Number";
-const VARIABLE_TYPES_JSON: &str = "JSON";
-const VARIABLE_TYPES_BOOL: &str = "Boolean";
+pub const VARIABLE_TYPES_STRING: &str = "String";
+pub const VARIABLE_TYPES_NUMBER: &str = "Number";
+pub const VARIABLE_TYPES_JSON: &str = "JSON";
+pub const VARIABLE_TYPES_BOOL: &str = "Boolean";
+
+pub const BASE_SEED: u32 = 1;
+pub const MAX_HASH_VALUE: u32 = 4294967295;
