@@ -1,8 +1,6 @@
-mod filters {
+pub(crate) mod filters {
     use std::collections::HashMap;
-
     use serde::{Deserialize, Serialize};
-
     use crate::constants;
     use crate::user::user::PopulatedUser;
 
@@ -27,21 +25,21 @@ mod filters {
     pub trait FilterOrOperator {
         fn evaluate(self: &Self, audiences: &HashMap<String, NoIdAudience>, user: &mut PopulatedUser, client_custom_data: &HashMap<String, serde_json::Value>) -> bool;
     }
-    type MixedFilters = Vec<Box<dyn FilterOrOperator>>;
-    struct PassFilter {}
+    pub type MixedFilters = Vec<Box<dyn FilterOrOperator>>;
+    pub struct PassFilter {}
     impl PassFilter {
         pub fn evaluate(audiences: &HashMap<String, NoIdAudience>, user: &mut PopulatedUser, client_custom_data: HashMap<String, serde_json::Value>) -> bool {
             true
         }
     }
-    struct FailFilter {}
+    pub struct FailFilter {}
     impl FailFilter {
         pub fn evaluate(audiences: &HashMap<String, NoIdAudience>, user: PopulatedUser, client_custom_data: HashMap<String, serde_json::Value>) -> bool {
             false
         }
     }
-    type AllFilter = PassFilter;
-    type OptInFilter = FailFilter;
+    pub type AllFilter = PassFilter;
+    pub type OptInFilter = FailFilter;
 
     pub struct AudienceOperator {
         operator: String,
@@ -84,14 +82,14 @@ mod filters {
         filters: &'a AudienceOperator,
     }
 
-    struct BaseFilter {
+    pub struct BaseFilter {
         _type: FilterType,
         sub_type: FilterSubType,
         comparator: &'static String,
         operator: &'static String,
     }
 
-    struct UserFilter {
+    pub struct UserFilter {
         base: BaseFilter,
         values: Vec<serde_json::Value>,
         compiled_string_vals: Vec<String>,
