@@ -46,5 +46,9 @@ pub const VARIABLE_TYPES_NUMBER: &str = "Number";
 pub const VARIABLE_TYPES_JSON: &str = "JSON";
 pub const VARIABLE_TYPES_BOOL: &str = "Boolean";
 
+pub const ROLLOUT_TYPE_SCHEDULE: &str = "schedule";
+pub const ROLLOUT_TYPE_PERCENTAGE: &str = "percentage";
+pub const ROLLOUT_TYPE_DISCRETE: &str = "discrete";
+
 pub const BASE_SEED: u32 = 1;
 pub const MAX_HASH_VALUE: u32 = 4294967295;

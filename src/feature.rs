@@ -15,6 +15,11 @@ pub mod feature {
         variables: Vec<VariationVariable>,
     }
 
+    pub struct FeatureVariation {
+        feature: String, // `json:"_feature"`
+        variation: String, // `json:"_variation"`
+    }
+
     impl Variation {
         pub fn get_variable_by_id(&self, id: &str) -> Option<&VariationVariable> {
             for variable in &self.variables {
@@ -26,19 +31,19 @@ pub mod feature {
         }
     }
 
-    pub struct ConfigFeature {
+    pub struct ConfigFeature<'a> {
         _id: String,
         featuretype: String,
         key: String,
         variations: Vec<Variation>,
-        configuration: FeatureConfiguration,
+        configuration: FeatureConfiguration<'a>,
         settings: String,
     }
 
     pub struct FeatureConfiguration<'a> {
         _id: String,
         prerequisites: Vec<FeaturePrerequisites>,
-        winning_variation: api.FeatureVariation,
+        winning_variation: FeatureVariation,
         forced_users: HashMap<String, String>,
         targets: Vec<Target<'a>>,
     }

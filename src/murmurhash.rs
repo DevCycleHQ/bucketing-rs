@@ -1,4 +1,4 @@
-mod murmurhash {
+pub mod murmurhash {
     use fasthash::{murmur3};
     use crate::constants;
     pub fn generate_bounded_hash(input: &str, seed: u32) -> f64 {

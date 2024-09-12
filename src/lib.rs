@@ -1,13 +1,14 @@
 pub mod murmurhash;
 pub mod constants;
 pub mod versioncompare;
-
 pub mod filters;
 pub mod feature;
 pub mod user;
 pub mod platform_data;
 pub mod target;
-mod errors;
+pub mod errors;
+mod config;
+mod bucketing;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

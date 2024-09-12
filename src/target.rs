@@ -1,6 +1,7 @@
 pub mod target {
     use crate::filters::filters::AudienceOperator;
     use crate::errors;
+    use serde_json;
     pub struct Target<'a> {
         _id: String,
         _audience: &'a Audience<'a>,
@@ -37,26 +38,26 @@ pub mod target {
     use crate::errors::errors::DevCycleError;
 
     #[derive(Serialize, Deserialize)]
-    struct Rollout {
+    pub struct Rollout {
         #[serde(rename = "type")]
-        _type: String,
-        start_percentage: f64,
-        start_date: DateTime<Utc>,
-        stages: Vec<RolloutStage>,
+        pub _type: String,
+        pub start_percentage: f64,
+        pub start_date: DateTime<Utc>,
+        pub stages: Vec<RolloutStage>,
     }
 
     #[derive(Serialize, Deserialize)]
-    struct RolloutStage {
+    pub struct RolloutStage {
         #[serde(rename = "type")]
-        _type: String,
-        date: DateTime<Utc>,
-        percentage: f64,
+        pub _type: String,
+        pub date: DateTime<Utc>,
+        pub percentage: f64,
     }
 
     #[derive(Serialize, Deserialize)]
-    struct TargetDistribution {
+    pub struct TargetDistribution {
         #[serde(rename = "_variation")]
-        variation: String,
-        percentage: f64,
+        pub variation: String,
+        pub percentage: f64,
     }
 }
