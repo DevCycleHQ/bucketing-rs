@@ -1,18 +1,19 @@
-pub mod target {
-    use crate::filters::filters::AudienceOperator;
+pub(crate) mod target {
+    use crate::filters::filters::{AudienceOperator, MixedFilters};
     use crate::errors;
     use serde_json;
-    pub struct Target<'a> {
-        _id: String,
-        _audience: &'a Audience<'a>,
-        rollout: &'a Rollout,
-        distribution: Vec<TargetDistribution>,
-        #[serde(rename = "bucketingKey")]
-        bucketingkey: String,
+    #[derive(Clone)]
+    pub(crate) struct Target {
+        pub(crate) _id: String,
+        pub(crate) audience: Audience,
+        pub(crate) rollout: Rollout,
+        pub(crate) distribution: Vec<TargetDistribution>,
+        //#[serde_json::serde(rename = "bucketingKey")]
+        pub(crate) bucketingkey: String,
     }
 
-    impl Target<'_> {
-        pub fn decide_target_variation(self, bounded_hash: f64) -> Result<String, DevCycleError> {
+    impl Target<> {
+        pub(crate) fn decide_target_variation(self, bounded_hash: f64) -> Result<String, DevCycleError> {
             let mut distribution_index: f64 = 0.0;
             let mut previous_distribution_index: f64 = 0.0;
 
@@ -27,37 +28,43 @@ pub mod target {
         }
     }
 
-    pub struct Audience<'a> {
-        _id: String,
-        filters: &'a AudienceOperator
+    #[derive(Clone)]
+    pub struct Audience {
+        pub(crate) _id: String,
+        pub(crate) filters: AudienceOperator,
     }
 
     use serde::{Deserialize, Serialize};
     use chrono::{DateTime, Utc};
-    use errors::FAILED_TO_DECIDE_VARIATION;
-    use crate::errors::errors::DevCycleError;
+    use crate::errors::errors::{DevCycleError, FAILED_TO_DECIDE_VARIATION};
+    use crate::murmurhash::murmurhash;
 
-    #[derive(Serialize, Deserialize)]
-    pub struct Rollout {
+    #[derive(Serialize, Deserialize, Clone)]
+    pub(crate) struct Rollout {
         #[serde(rename = "type")]
-        pub _type: String,
-        pub start_percentage: f64,
-        pub start_date: DateTime<Utc>,
-        pub stages: Vec<RolloutStage>,
+        pub(crate) _type: String,
+        pub(crate) start_percentage: f64,
+        pub(crate) start_date: DateTime<Utc>,
+        pub(crate) stages: Vec<RolloutStage>,
     }
 
-    #[derive(Serialize, Deserialize)]
-    pub struct RolloutStage {
+    #[derive(Serialize, Deserialize, Clone)]
+    pub(crate) struct RolloutStage {
         #[serde(rename = "type")]
-        pub _type: String,
-        pub date: DateTime<Utc>,
-        pub percentage: f64,
+        pub(crate) _type: String,
+        pub(crate) date: DateTime<Utc>,
+        pub(crate) percentage: f64,
     }
 
-    #[derive(Serialize, Deserialize)]
-    pub struct TargetDistribution {
+    #[derive(Serialize, Deserialize, Clone)]
+    pub(crate) struct TargetDistribution {
         #[serde(rename = "_variation")]
-        pub variation: String,
-        pub percentage: f64,
+        pub(crate) variation: String,
+        pub(crate) percentage: f64,
+    }
+
+    pub(crate) struct TargetAndHashes {
+        pub(crate) target: Target,
+        pub(crate) bounded_hash: murmurhash::BoundedHash,
     }
 }

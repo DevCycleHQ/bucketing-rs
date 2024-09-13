@@ -1,12 +1,12 @@
 use crate::errors::errors::DevCycleError;
 
-pub mod errors {
+pub(crate) mod errors {
     use std::fmt;
     use std::error::Error;
 
     #[derive(Debug)]
     pub struct DevCycleError {
-        details: String
+        pub(crate) details: String,
     }
 
     impl DevCycleError {
@@ -27,5 +27,7 @@ pub mod errors {
         }
     }
 
+    pub const FAILED_TO_DECIDE_VARIATION: DevCycleError = DevCycleError{details: "Failed to decide target variation".parse().unwrap() };
+    pub const FAILED_USER_DOES_NOT_QUALIFY_FOR_TARGETS: DevCycleError = DevCycleError{details: "User does not qualify for any targets for feature".parse().unwrap() };
+    pub const FAILED_USER_DOES_NOT_QUALIFY_FOR_ROLLOUTS: DevCycleError = DevCycleError{details: "User does not qualify for any rollouts for feature".parse().unwrap() };
 }
-pub const FAILED_TO_DECIDE_VARIATION: DevCycleError = DevCycleError{details: String::from("Failed to decide target variation") };

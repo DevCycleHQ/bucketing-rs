@@ -41,6 +41,7 @@ pub(crate) mod filters {
     pub type AllFilter = PassFilter;
     pub type OptInFilter = FailFilter;
 
+    #[derive(Clone)]
     pub struct AudienceOperator {
         operator: String,
         filters: MixedFilters,
@@ -107,15 +108,15 @@ pub(crate) mod filters {
                 return Ok(());
             }
             let first_value = self.values.get(0);
-            match first_value {
+            return match first_value {
                 Some(value) => {
                     match value {
                         serde_json::Value::Bool(_) => {
                             let mut bool_values: Vec<bool> = Vec::new();
-                            for value in self.values {
+                            for value in &self.values {
                                 match value {
                                     serde_json::Value::Bool(val) => {
-                                        bool_values.push(val);
+                                        bool_values.push(*val);
                                     }
                                     _ => {
                                         return Err(format!("Filter values must be all of the same type. Expected: bool, got: {:?}", value));
@@ -123,11 +124,11 @@ pub(crate) mod filters {
                                 }
                             }
                             self.compiled_bool_vals = bool_values;
-                            return Ok(());
+                            Ok(())
                         }
                         serde_json::Value::String(_) => {
                             let mut string_values: Vec<String> = Vec::new();
-                            for value in self.values {
+                            for value in self.values.clone() {
                                 match value {
                                     serde_json::Value::String(val) => {
                                         string_values.push(val);
@@ -138,11 +139,11 @@ pub(crate) mod filters {
                                 }
                             }
                             self.compiled_string_vals = string_values;
-                            return Ok(());
+                            Ok(())
                         }
                         serde_json::Value::Number(_) => {
                             let mut num_values: Vec<f64> = Vec::new();
-                            for value in self.values {
+                            for value in &self.values {
                                 match value {
                                     serde_json::Value::Number(val) => {
                                         num_values.push(val.as_f64().unwrap());
@@ -153,15 +154,15 @@ pub(crate) mod filters {
                                 }
                             }
                             self.compiled_num_vals = num_values;
-                            return Ok(());
+                            Ok(())
                         }
                         _ => {
-                            return Err(format!("Filter values must be of type bool, string, or number. Got: {:?}", value));
+                            Err(format!("Filter values must be of type bool, string, or number. Got: {:?}", value))
                         }
                     }
                 }
                 None => {
-                    return Ok(());
+                    Ok(())
                 }
             }
         }

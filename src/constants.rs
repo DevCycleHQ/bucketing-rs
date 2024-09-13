@@ -50,5 +50,8 @@ pub const ROLLOUT_TYPE_SCHEDULE: &str = "schedule";
 pub const ROLLOUT_TYPE_PERCENTAGE: &str = "percentage";
 pub const ROLLOUT_TYPE_DISCRETE: &str = "discrete";
 
+pub const DEFAULT_BUCKETING_VALUE: &str = "null";
+
+
 pub const BASE_SEED: u32 = 1;
 pub const MAX_HASH_VALUE: u32 = 4294967295;

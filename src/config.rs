@@ -1,72 +1,72 @@
-pub mod config {
+pub(crate) mod config {
     use std::collections::HashMap;
     use crate::feature::feature::ConfigFeature;
     use crate::filters::filters::NoIdAudience;
 
-    struct Project {
-        _id: String,
-        key: String,
-        a0_organization: String,
-        settings: ProjectSettings,
+    pub(crate) struct Project {
+        pub _id: String,
+        pub key: String,
+        pub a0_organization: String,
+        pub settings: ProjectSettings,
     }
 
-    struct ProjectSettings {
-        edgedb: EdgeDBSettings,
-        optin: OptInSettings,
-        disable_passthrough_rollouts: bool,
+    pub(crate) struct ProjectSettings {
+        pub edgedb: EdgeDBSettings,
+        pub optin: OptInSettings,
+        pub disable_passthrough_rollouts: bool,
     }
 
-    struct EdgeDBSettings {
-        enabled: bool
+    pub(crate) struct EdgeDBSettings {
+        enabled: bool,
     }
 
-    struct OptInSettings {
+    pub(crate) struct OptInSettings {
         enabled: bool,
         title: String,
         description: String,
         image_url: String,
         colors: OptInColors,
     }
-    struct OptInColors {
+    pub(crate) struct OptInColors {
         primary: String,
         secondary: String,
     }
 
-    struct Environment {
+    pub(crate) struct Environment {
         _id: String,
-        key: String
+        key: String,
     }
 
-    struct BucketingConfiguration {
+    pub(crate) struct BucketingConfiguration {
         flush_events_interval: u64,
         disable_automatic_event_logging: bool,
         disable_custom_event_logging: bool,
         disable_push_state_event_logging: bool,
     }
 
-    struct SSE {
-        sse: SSEHost
+    pub(crate) struct SSE {
+        sse: SSEHost,
     }
 
-    struct SSEHost{
+    pub(crate) struct SSEHost {
         hostname: String,
         path: String,
     }
 
-    struct Variable {
+    pub(crate) struct Variable {
         _id: String,
         _type: String,
         key: String,
     }
-    struct ConfigBody<'a>{
-        project: Project,
-        audiences: HashMap<String, NoIdAudience<'a>>,
-        environment: Environment,
-        features: Vec<ConfigFeature<'a>>,
-        variables: Vec<Variable>,
-        sse: SSE,
-        variable_id_map: HashMap<String, Variable>,
-        variable_key_map: HashMap<String, Variable>,
-        variable_id_to_feature_map: HashMap<String, ConfigFeature<'a>>
+    pub(crate) struct ConfigBody<'a> {
+        pub(crate) project: Project,
+        pub(crate) audiences: &'a HashMap<String, NoIdAudience<'a>>,
+        pub(crate) environment: Environment,
+        pub(crate) features: Vec<ConfigFeature>,
+        pub(crate) variables: Vec<Variable>,
+        pub(crate) sse: SSE,
+        pub(crate) variable_id_map: HashMap<String, Variable>,
+        pub(crate) variable_key_map: HashMap<String, Variable>,
+        pub(crate) variable_id_to_feature_map: HashMap<String, ConfigFeature>,
     }
 }

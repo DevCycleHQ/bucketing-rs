@@ -2,7 +2,8 @@ pub mod user {
     use std::collections::HashMap;
 
     use chrono::{DateTime, Utc};
-
+    use crate::config::config::{Environment, Project};
+    use crate::feature::feature::{Feature, FeatureVariation};
     use crate::platform_data::platform_data::PlatformData;
 
     pub struct User {
@@ -75,43 +76,40 @@ pub mod user {
         feature_vars: &'a HashMap<String, String>,
     }
 
+    #[derive(Clone)]
     pub struct PopulatedUser {
-        user_id: String,
+        pub user_id: String,
         // User's email used to identify the user on the dashboard / target audiences
-        email: String,
+        pub email: String,
         // User's name used to identify the user on the dashboard / target audiences
-        name: String,
+        pub name: String,
         // User's language in ISO 639-1 format
-        language: String,
+        pub language: String,
         // User's country in ISO 3166 alpha-2 format
-        country: String,
+        pub country: String,
         // App Version of the running application
-        app_version: String,
+        pub app_version: String,
         // App Build number of the running application
-        app_build: String,
+        pub app_build: String,
         // User's custom data to target the user with, data will be logged to DevCycle for use in dashboard.
-        custom_data: HashMap<String, serde_json::Value>,
+        pub custom_data: HashMap<String, serde_json::Value>,
         // User's custom data to target the user with, data will not be logged to DevCycle only used for feature bucketing.
-        private_custom_data: HashMap<String, serde_json::Value>,
+        pub private_custom_data: HashMap<String, serde_json::Value>,
         // User's device model
-        device_model: String,
+        pub device_model: String,
         // Date the user was created, Unix epoch timestamp format
-        last_seen_date: DateTime<Utc>,
+        pub last_seen_date: DateTime<Utc>,
         // Platform data of the instance
-        platform_data: PlatformData,
+        pub platform_data: PlatformData,
         // Date the user was created, Unix epoch timestamp format
-        created_date: DateTime<Utc>,
+        pub created_date: DateTime<Utc>,
     }
 
     impl PopulatedUser {
-        pub fn merge_client_custom_data(self, client_custom_data: HashMap<String, serde_json::Value>) {
-            if !self.custom_data {
-                self.custom_data = HashMap::new();
-            }
-
-            for (k, v) in client_custom_data {
-                if !self.custom_data.contains_key(&k.as_str()) && self.private_custom_data.contains_key(&k.as_str()) {
-                    self.custom_data.insert(k, v);
+        pub fn merge_client_custom_data(mut self, client_custom_data: HashMap<String, serde_json::Value>) {
+                        for (k, v) in client_custom_data {
+                if !self.custom_data.contains_key(&k) && !self.private_custom_data.contains_key(&k) {
+                    self.custom_data.insert(k,v);
                 }
             }
         }
@@ -127,4 +125,16 @@ pub mod user {
             ret
         }
     }
+
+    pub struct BucketedUserConfig {
+        project: Project,
+        environment: Environment,
+        features: HashMap<String, Feature>,
+        feature_variation_map: HashMap<String, String>,
+        variable_variation_map: HashMap<String, FeatureVariation>,
+        variables: HashMap<String, ReadOnlyVariable>,
+        known_variable_keys: Vec<f64>,
+        user: User,
+    }
+
 }

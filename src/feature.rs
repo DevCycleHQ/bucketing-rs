@@ -1,18 +1,23 @@
 pub mod feature {
     use std::collections::HashMap;
-    use serde_json::Value;
+
     use crate::target::target::Target;
 
     pub struct VariationVariable {
         _var: String,     // `json:"_var"`
         value: serde_json::Value, // {} `json:"value"`
     }
-
-    pub struct Variation {
-        _id: String,
-        name: String,
-        key: String,
-        variables: Vec<VariationVariable>,
+    pub struct ReadOnlyVariable {
+        pub id: String,
+        pub key: String,
+        pub _type: String,
+        pub value: serde_json::Value,
+    }
+    pub(crate) struct Variation {
+        pub(crate) _id: String,
+        pub(crate) name: String,
+        pub(crate) key: String,
+        pub(crate) variables: Vec<VariationVariable>,
     }
 
     pub struct FeatureVariation {
@@ -31,24 +36,34 @@ pub mod feature {
         }
     }
 
-    pub struct ConfigFeature<'a> {
-        _id: String,
-        featuretype: String,
-        key: String,
-        variations: Vec<Variation>,
-        configuration: FeatureConfiguration<'a>,
-        settings: String,
+    pub struct ConfigFeature {
+        pub _id: String,
+        pub featuretype: String,
+        pub key: String,
+        pub variations: Vec<Variation>,
+        pub configuration: FeatureConfiguration,
+        pub settings: String,
     }
 
-    pub struct FeatureConfiguration<'a> {
-        _id: String,
-        prerequisites: Vec<FeaturePrerequisites>,
-        winning_variation: FeatureVariation,
-        forced_users: HashMap<String, String>,
-        targets: Vec<Target<'a>>,
+    pub struct FeatureConfiguration {
+        pub _id: String,
+        pub prerequisites: Vec<FeaturePrerequisites>,
+        pub winning_variation: FeatureVariation,
+        pub forced_users: HashMap<String, String>,
+        pub targets: Vec<Target>,
     }
     pub struct FeaturePrerequisites {
         _feature: String, // `json:"_feature"`
         comparator: String, // `json:"comparator"`
+    }
+
+    pub struct Feature {
+        pub _id: String,
+        pub key: String,
+        pub featuretype: String,
+        pub variation: String,
+        pub variationkey: String,
+        pub variationname: String,
+        pub evalreason: String,
     }
 }
