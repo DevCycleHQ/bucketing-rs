@@ -30,4 +30,6 @@ pub(crate) mod errors {
     pub const FAILED_TO_DECIDE_VARIATION: DevCycleError = DevCycleError{details: "Failed to decide target variation".parse().unwrap() };
     pub const FAILED_USER_DOES_NOT_QUALIFY_FOR_TARGETS: DevCycleError = DevCycleError{details: "User does not qualify for any targets for feature".parse().unwrap() };
     pub const FAILED_USER_DOES_NOT_QUALIFY_FOR_ROLLOUTS: DevCycleError = DevCycleError{details: "User does not qualify for any rollouts for feature".parse().unwrap() };
+    pub const MISSING_VARIABLE: DevCycleError = DevCycleError{details: "Missing variable".parse().unwrap() };
+    pub const MISSING_VARIATION: DevCycleError = DevCycleError{details: "Missing variation".parse().unwrap() };
 }

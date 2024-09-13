@@ -54,9 +54,9 @@ pub(crate) mod config {
     }
 
     pub(crate) struct Variable {
-        _id: String,
-        _type: String,
-        key: String,
+        pub _id: String,
+        pub _type: String,
+        pub key: String,
     }
     pub(crate) struct ConfigBody<'a> {
         pub(crate) project: Project,

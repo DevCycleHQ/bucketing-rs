@@ -9,6 +9,7 @@ pub mod target;
 pub mod errors;
 mod config;
 mod bucketing;
+mod configmanager;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

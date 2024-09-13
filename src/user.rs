@@ -3,7 +3,7 @@ pub mod user {
 
     use chrono::{DateTime, Utc};
     use crate::config::config::{Environment, Project};
-    use crate::feature::feature::{Feature, FeatureVariation};
+    use crate::feature::feature::{Feature, FeatureVariation, ReadOnlyVariable};
     use crate::platform_data::platform_data::PlatformData;
 
     pub struct User {
@@ -127,14 +127,14 @@ pub mod user {
     }
 
     pub struct BucketedUserConfig {
-        project: Project,
-        environment: Environment,
-        features: HashMap<String, Feature>,
-        feature_variation_map: HashMap<String, String>,
-        variable_variation_map: HashMap<String, FeatureVariation>,
-        variables: HashMap<String, ReadOnlyVariable>,
-        known_variable_keys: Vec<f64>,
-        user: User,
+        pub(crate) project: Project,
+        pub(crate) environment: Environment,
+        pub(crate) features: HashMap<String, Feature>,
+        pub(crate) feature_variation_map: HashMap<String, String>,
+        pub(crate) variable_variation_map: HashMap<String, FeatureVariation>,
+        pub(crate) variables: HashMap<String, ReadOnlyVariable>,
+        pub(crate) known_variable_keys: Vec<f64>,
+        pub(crate) user: User,
     }
 
 }

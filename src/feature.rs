@@ -4,8 +4,8 @@ pub mod feature {
     use crate::target::target::Target;
 
     pub struct VariationVariable {
-        _var: String,     // `json:"_var"`
-        value: serde_json::Value, // {} `json:"value"`
+        pub _var: String,     // `json:"_var"`
+        pub value: serde_json::Value, // {} `json:"value"`
     }
     pub struct ReadOnlyVariable {
         pub id: String,
@@ -21,8 +21,8 @@ pub mod feature {
     }
 
     pub struct FeatureVariation {
-        feature: String, // `json:"_feature"`
-        variation: String, // `json:"_variation"`
+        pub feature: String, // `json:"_feature"`
+        pub variation: String, // `json:"_variation"`
     }
 
     impl Variation {
@@ -60,7 +60,7 @@ pub mod feature {
     pub struct Feature {
         pub _id: String,
         pub key: String,
-        pub featuretype: String,
+        pub _type: String,
         pub variation: String,
         pub variationkey: String,
         pub variationname: String,
