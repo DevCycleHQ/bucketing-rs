@@ -3,5 +3,7 @@ pub mod config_manager {
     use std::sync::Mutex;
     use crate::config::config::ConfigBody;
 
-    pub(crate) static CONFIGS: Mutex<HashMap<String, ConfigBody>> = Mutex::new(HashMap::new());
+    thread_local! {
+         pub static CONFIGS: Mutex<HashMap<String, ConfigBody<'static>>> = Mutex::new(HashMap::new());
+    }
 }

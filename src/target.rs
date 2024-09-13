@@ -1,7 +1,12 @@
 pub(crate) mod target {
-    use crate::filters::filters::{AudienceOperator, MixedFilters};
-    use crate::errors;
+    use chrono::{DateTime, Utc};
+    use serde::{Deserialize, Serialize};
     use serde_json;
+
+    use crate::errors::errors::{DevCycleError, FAILED_TO_DECIDE_VARIATION};
+    use crate::filters::filters::AudienceOperator;
+    use crate::murmurhash::murmurhash;
+
     #[derive(Clone)]
     pub(crate) struct Target {
         pub(crate) _id: String,
@@ -33,11 +38,6 @@ pub(crate) mod target {
         pub(crate) _id: String,
         pub(crate) filters: AudienceOperator,
     }
-
-    use serde::{Deserialize, Serialize};
-    use chrono::{DateTime, Utc};
-    use crate::errors::errors::{DevCycleError, FAILED_TO_DECIDE_VARIATION};
-    use crate::murmurhash::murmurhash;
 
     #[derive(Serialize, Deserialize, Clone)]
     pub(crate) struct Rollout {

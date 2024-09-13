@@ -1,5 +1,5 @@
 pub mod platform_data {
-    #[derive(Debug)]
+    #[derive(Debug,Clone)]
     pub struct PlatformData {
         sdk_type: String,
         sdk_version: String,

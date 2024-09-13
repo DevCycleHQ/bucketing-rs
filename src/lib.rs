@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+use crate::errors::errors::DevCycleError;
+use crate::user::user::PopulatedUser;
+
 pub mod murmurhash;
 pub mod constants;
 pub mod versioncompare;
@@ -7,12 +11,19 @@ pub mod user;
 pub mod platform_data;
 pub mod target;
 pub mod errors;
-mod config;
-mod bucketing;
-mod configmanager;
+pub mod config;
+pub mod bucketing;
+pub mod configmanager;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
+}
+pub async unsafe fn generate_bucketed_config(
+    sdk_key: &str,
+    user: PopulatedUser,
+    client_custom_data: HashMap<String, serde_json::Value>,
+) -> Result<user::user::BucketedUserConfig, DevCycleError> {
+    bucketing::bucketing::generate_bucketed_config(sdk_key, user, client_custom_data).await
 }
 
 #[cfg(test)]
