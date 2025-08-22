@@ -3,16 +3,19 @@ pub mod feature {
 
     use crate::target::target::Target;
 
+    #[derive(Clone)]
     pub struct VariationVariable {
         pub _var: String,             // `json:"_var"`
         pub value: serde_json::Value, // {} `json:"value"`
     }
+    #[derive(Clone)]
     pub struct ReadOnlyVariable {
         pub id: String,
         pub key: String,
         pub _type: String,
         pub value: serde_json::Value,
     }
+    #[derive(Clone)]
     pub(crate) struct Variation {
         pub(crate) _id: String,
         pub(crate) name: String,
@@ -20,6 +23,7 @@ pub mod feature {
         pub(crate) variables: Vec<VariationVariable>,
     }
 
+    #[derive(Clone)]
     pub struct FeatureVariation {
         pub feature: String,   // `json:"_feature"`
         pub variation: String, // `json:"_variation"`
@@ -52,11 +56,14 @@ pub mod feature {
         pub forced_users: HashMap<String, String>,
         pub targets: Vec<Target>,
     }
+
+    #[derive(Clone)]
     pub struct FeaturePrerequisites {
         _feature: String,   // `json:"_feature"`
         comparator: String, // `json:"comparator"`
     }
 
+    #[derive(Clone)]
     pub struct Feature {
         pub _id: String,
         pub key: String,

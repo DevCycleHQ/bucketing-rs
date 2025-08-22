@@ -7,7 +7,6 @@ pub(crate) mod target {
     use crate::filters::filters::AudienceOperator;
     use crate::murmurhash::murmurhash;
 
-    #[derive(Clone)]
     pub(crate) struct Target {
         pub(crate) _id: String,
         pub(crate) audience: Audience,
@@ -37,7 +36,6 @@ pub(crate) mod target {
         }
     }
 
-    #[derive(Clone)]
     pub struct Audience {
         pub(crate) _id: String,
         pub(crate) filters: AudienceOperator,
@@ -68,7 +66,7 @@ pub(crate) mod target {
     }
 
     pub(crate) struct TargetAndHashes {
-        pub(crate) target: Target,
+        pub(crate) target_id: String,
         pub(crate) bounded_hash: murmurhash::BoundedHash,
     }
 }

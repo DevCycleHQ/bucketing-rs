@@ -30,22 +30,39 @@ pub(crate) mod errors {
     }
 
     pub const FAILED_TO_DECIDE_VARIATION: DevCycleError = DevCycleError {
-        details: "Failed to decide target variation".parse().unwrap(),
+        details: String::new(),
     };
     pub const FAILED_USER_DOES_NOT_QUALIFY_FOR_TARGETS: DevCycleError = DevCycleError {
-        details: "User does not qualify for any targets for feature"
-            .parse()
-            .unwrap(),
+        details: String::new(),
     };
     pub const FAILED_USER_DOES_NOT_QUALIFY_FOR_ROLLOUTS: DevCycleError = DevCycleError {
-        details: "User does not qualify for any rollouts for feature"
-            .parse()
-            .unwrap(),
+        details: String::new(),
     };
     pub const MISSING_VARIABLE: DevCycleError = DevCycleError {
-        details: "Missing variable".parse().unwrap(),
+        details: String::new(),
     };
     pub const MISSING_VARIATION: DevCycleError = DevCycleError {
-        details: "Missing variation".parse().unwrap(),
+        details: String::new(),
     };
+
+    // Helper functions to create errors with proper messages
+    pub fn failed_to_decide_variation() -> DevCycleError {
+        DevCycleError::new("Failed to decide target variation")
+    }
+
+    pub fn failed_user_does_not_qualify_for_targets() -> DevCycleError {
+        DevCycleError::new("User does not qualify for any targets for feature")
+    }
+
+    pub fn failed_user_does_not_qualify_for_rollouts() -> DevCycleError {
+        DevCycleError::new("User does not qualify for any rollouts for feature")
+    }
+
+    pub fn missing_variable() -> DevCycleError {
+        DevCycleError::new("Missing variable")
+    }
+
+    pub fn missing_variation() -> DevCycleError {
+        DevCycleError::new("Missing variation")
+    }
 }

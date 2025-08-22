@@ -54,7 +54,6 @@ pub(crate) mod filters {
     pub type AllFilter = PassFilter;
     pub type OptInFilter = FailFilter;
 
-    #[derive(Clone)]
     pub struct AudienceOperator {
         operator: String,
         filters: MixedFilters,

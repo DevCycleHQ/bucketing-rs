@@ -8,27 +8,27 @@ pub mod user {
 
     pub struct User {
         // Unique id to identify the user
-        user_id: String,
+        pub user_id: String,
         // User's email used to identify the user on the dashboard / target audiences
-        email: String,
+        pub email: String,
         // User's name used to identify the user on the dashboard / target audiences
-        name: String,
+        pub name: String,
         // User's language in ISO 639-1 format
-        language: String,
+        pub language: String,
         // User's country in ISO 3166 alpha-2 format
-        country: String,
+        pub country: String,
         // App Version of the running application
-        app_version: String,
+        pub app_version: String,
         // App Build number of the running application
-        app_build: String,
+        pub app_build: String,
         // User's custom data to target the user with, data will be logged to DevCycle for use in dashboard.
-        custom_data: HashMap<String, serde_json::Value>,
+        pub custom_data: HashMap<String, serde_json::Value>,
         // User's custom data to target the user with, data will not be logged to DevCycle only used for feature bucketing.
-        private_custom_data: HashMap<String, serde_json::Value>,
+        pub private_custom_data: HashMap<String, serde_json::Value>,
         // User's device model
-        device_model: String,
+        pub device_model: String,
         // Date the user was created, Unix epoch timestamp format
-        last_seen_date: DateTime<Utc>,
+        pub last_seen_date: DateTime<Utc>,
     }
 
     impl User {
@@ -134,13 +134,13 @@ pub mod user {
     }
 
     pub struct BucketedUserConfig {
-        pub(crate) project: Project,
-        pub(crate) environment: Environment,
+        pub(crate) project: String, // Changed from Project to String to match the data we have
+        pub(crate) environment: String, // Changed from Environment to String to match the data we have
         pub(crate) features: HashMap<String, Feature>,
         pub(crate) feature_variation_map: HashMap<String, String>,
         pub(crate) variable_variation_map: HashMap<String, FeatureVariation>,
         pub(crate) variables: HashMap<String, ReadOnlyVariable>,
-        pub(crate) known_variable_keys: Vec<f64>,
+        pub(crate) known_variable_keys: Vec<String>, // Fixed type from Vec<f64> to Vec<String>
         pub(crate) user: User,
     }
 }

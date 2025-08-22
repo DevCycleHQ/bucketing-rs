@@ -3,6 +3,7 @@ pub(crate) mod config {
     use crate::filters::filters::NoIdAudience;
     use std::collections::HashMap;
 
+    #[derive(Clone)]
     pub(crate) struct Project {
         pub _id: String,
         pub key: String,
@@ -10,16 +11,19 @@ pub(crate) mod config {
         pub settings: ProjectSettings,
     }
 
+    #[derive(Clone)]
     pub(crate) struct ProjectSettings {
         pub edgedb: EdgeDBSettings,
         pub optin: OptInSettings,
         pub disable_passthrough_rollouts: bool,
     }
 
+    #[derive(Clone)]
     pub(crate) struct EdgeDBSettings {
         enabled: bool,
     }
 
+    #[derive(Clone)]
     pub(crate) struct OptInSettings {
         enabled: bool,
         title: String,
@@ -27,14 +31,17 @@ pub(crate) mod config {
         image_url: String,
         colors: OptInColors,
     }
+
+    #[derive(Clone)]
     pub(crate) struct OptInColors {
         primary: String,
         secondary: String,
     }
 
+    #[derive(Clone)]
     pub(crate) struct Environment {
-        _id: String,
-        key: String,
+        pub _id: String,
+        pub key: String,
     }
 
     pub(crate) struct BucketingConfiguration {
@@ -44,15 +51,18 @@ pub(crate) mod config {
         disable_push_state_event_logging: bool,
     }
 
+    #[derive(Clone)]
     pub(crate) struct SSE {
         sse: SSEHost,
     }
 
+    #[derive(Clone)]
     pub(crate) struct SSEHost {
         hostname: String,
         path: String,
     }
 
+    #[derive(Clone)]
     pub(crate) struct Variable {
         pub _id: String,
         pub _type: String,

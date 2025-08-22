@@ -1,8 +1,10 @@
 pub(crate) mod murmurhash {
     use crate::constants;
-    use fasthash::murmur3;
+    use murmur3::murmur3_32;
+
     pub(crate) fn generate_bounded_hash(input: String, seed: u32) -> f64 {
-        let hash = murmur3::hash32_with_seed(input, seed);
+        let mut cursor = std::io::Cursor::new(input.as_bytes());
+        let hash = murmur3_32(&mut cursor, seed).unwrap();
         return f64::from(hash) / f64::from(constants::MAX_HASH_VALUE);
     }
     pub(crate) struct BoundedHash {
@@ -14,7 +16,8 @@ pub(crate) mod murmurhash {
         bucketing_key_value: String,
         target_id: String,
     ) -> BoundedHash {
-        let target_hash = murmur3::hash32_with_seed(target_id, constants::BASE_SEED);
+        let mut cursor = std::io::Cursor::new(target_id.as_bytes());
+        let target_hash = murmur3_32(&mut cursor, constants::BASE_SEED).unwrap();
         let rollout_hash =
             generate_bounded_hash(bucketing_key_value.clone() + "_rollout", target_hash);
         let bucketing_hash = generate_bounded_hash(bucketing_key_value.clone(), target_hash);
