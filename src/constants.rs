@@ -1,21 +1,16 @@
-mod constants {
-
-}
+mod constants {}
 pub const OPERATOR_AND: &str = "and";
 pub const OPERATOR_OR: &str = "or";
-
 
 pub const VARIABLE_EVALUATED_EVENT: &str = "variableEvaluated";
 pub const VARIABLE_DEFAULTED_EVENT: &str = "variableDefaulted";
 pub const AGG_VARIABLE_EVALUATED_EVENT: &str = "aggVariableEvaluated";
 pub const AGG_VARIABLE_DEFAULTED_EVENT: &str = "aggVariableDefaulted";
 
-
 pub const TYPE_ALL: &str = "all";
 pub const TYPE_USER: &str = "user";
 pub const TYPE_OPT_IN: &str = "optIn";
 pub const TYPE_AUDIENCE_MATCH: &str = "audienceMatch";
-
 
 pub const SUB_TYPE_USER_ID: &str = "user_id";
 pub const SUB_TYPE_EMAIL: &str = "email";
@@ -51,7 +46,6 @@ pub const ROLLOUT_TYPE_PERCENTAGE: &str = "percentage";
 pub const ROLLOUT_TYPE_DISCRETE: &str = "discrete";
 
 pub const DEFAULT_BUCKETING_VALUE: &str = "null";
-
 
 pub const BASE_SEED: u32 = 1;
 pub const MAX_HASH_VALUE: u32 = 4294967295;

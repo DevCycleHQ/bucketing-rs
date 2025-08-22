@@ -1,10 +1,10 @@
 pub mod user {
     use std::collections::HashMap;
 
-    use chrono::{DateTime, Utc};
     use crate::config::config::{Environment, Project};
     use crate::feature::feature::{Feature, FeatureVariation, ReadOnlyVariable};
     use crate::platform_data::platform_data::PlatformData;
+    use chrono::{DateTime, Utc};
 
     pub struct User {
         // Unique id to identify the user
@@ -31,7 +31,6 @@ pub mod user {
         last_seen_date: DateTime<Utc>,
     }
 
-
     impl User {
         pub fn get_populated_user(&self, platform_data: PlatformData) -> PopulatedUser {
             PopulatedUser {
@@ -52,7 +51,11 @@ pub mod user {
         }
 
         // GetPopulatedUserWithTime returns a populated user with a specific created date
-        pub fn get_populated_user_with_time(&self, platform_data: PlatformData, create_date: DateTime<Utc>) -> PopulatedUser {
+        pub fn get_populated_user_with_time(
+            &self,
+            platform_data: PlatformData,
+            create_date: DateTime<Utc>,
+        ) -> PopulatedUser {
             PopulatedUser {
                 user_id: self.user_id.clone(),
                 email: self.email.clone(),
@@ -106,10 +109,14 @@ pub mod user {
     }
 
     impl PopulatedUser {
-        pub fn merge_client_custom_data(mut self, client_custom_data: HashMap<String, serde_json::Value>) {
-                        for (k, v) in client_custom_data {
-                if !self.custom_data.contains_key(&k) && !self.private_custom_data.contains_key(&k) {
-                    self.custom_data.insert(k,v);
+        pub fn merge_client_custom_data(
+            mut self,
+            client_custom_data: HashMap<String, serde_json::Value>,
+        ) {
+            for (k, v) in client_custom_data {
+                if !self.custom_data.contains_key(&k) && !self.private_custom_data.contains_key(&k)
+                {
+                    self.custom_data.insert(k, v);
                 }
             }
         }
@@ -136,5 +143,4 @@ pub mod user {
         pub(crate) known_variable_keys: Vec<f64>,
         pub(crate) user: User,
     }
-
 }

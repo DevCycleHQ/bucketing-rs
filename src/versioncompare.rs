@@ -79,4 +79,3 @@ fn version_compare(v1: &str, v2: &str, options: SemverOptions) -> f64 {
     }
     0.0
 }
-

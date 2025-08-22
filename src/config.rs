@@ -1,7 +1,7 @@
 pub(crate) mod config {
-    use std::collections::HashMap;
     use crate::feature::feature::ConfigFeature;
     use crate::filters::filters::NoIdAudience;
+    use std::collections::HashMap;
 
     pub(crate) struct Project {
         pub _id: String,

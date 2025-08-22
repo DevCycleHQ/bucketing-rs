@@ -17,14 +17,18 @@ pub(crate) mod target {
         pub(crate) bucketingkey: String,
     }
 
-    impl Target<> {
-        pub(crate) fn decide_target_variation(self, bounded_hash: f64) -> Result<String, DevCycleError> {
+    impl Target {
+        pub(crate) fn decide_target_variation(
+            self,
+            bounded_hash: f64,
+        ) -> Result<String, DevCycleError> {
             let mut distribution_index: f64 = 0.0;
             let mut previous_distribution_index: f64 = 0.0;
 
             for d in self.distribution {
                 distribution_index += d.percentage;
-                if bounded_hash >= previous_distribution_index && bounded_hash < distribution_index {
+                if bounded_hash >= previous_distribution_index && bounded_hash < distribution_index
+                {
                     return Ok(d.variation);
                 }
                 previous_distribution_index = distribution_index;

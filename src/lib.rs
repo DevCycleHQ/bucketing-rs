@@ -1,19 +1,19 @@
-use std::collections::HashMap;
 use crate::errors::errors::DevCycleError;
 use crate::user::user::PopulatedUser;
+use std::collections::HashMap;
 
-pub mod murmurhash;
+pub mod bucketing;
+pub mod config;
+pub mod configmanager;
 pub mod constants;
-pub mod versioncompare;
-pub mod filters;
+pub mod errors;
 pub mod feature;
-pub mod user;
+pub mod filters;
+pub mod murmurhash;
 pub mod platform_data;
 pub mod target;
-pub mod errors;
-pub mod config;
-pub mod bucketing;
-pub mod configmanager;
+pub mod user;
+pub mod versioncompare;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
