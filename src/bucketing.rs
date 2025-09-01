@@ -111,10 +111,15 @@ pub mod bucketing {
         }
     }
 
-    pub unsafe fn does_user_pass_rollout(rollout: Rollout, bounded_hash: f64) -> bool {
-        let current_rollout_percentage =
-            get_current_rollout_percentage(rollout, chrono::Utc::now());
-        return current_rollout_percentage != 0.0 && bounded_hash < current_rollout_percentage;
+    pub unsafe fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_hash: f64) -> bool {
+        match rollout {
+            Some(r) => {
+                let current_rollout_percentage =
+                    get_current_rollout_percentage(r, chrono::Utc::now());
+                return current_rollout_percentage != 0.0 && bounded_hash < current_rollout_percentage;
+            }
+            None => true, // No rollout means user passes by default
+        }
     }
 
     pub unsafe fn evaluate_segmentation_for_feature(
@@ -179,7 +184,7 @@ pub mod bucketing {
         {
             return Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_ROLLOUTS);
         }
-        
+
         // Create a new TargetAndHashes without cloning Target
         return Ok(target::target::TargetAndHashes {
             target_id: (*target)._id.clone(),
@@ -190,7 +195,7 @@ pub mod bucketing {
         feature: ConfigFeature,
         hashes: TargetAndHashes,
     ) -> Result<Variation, DevCycleError> {
-        // Since we no longer have the target with distribution info, 
+        // Since we no longer have the target with distribution info,
         // we'll need a different approach here. For now, return the first variation
         // This would need to be properly implemented based on requirements
         if feature.variations.len() > 0 {
@@ -207,14 +212,14 @@ pub mod bucketing {
         let config_result = config_manager::CONFIGS.with(|configs| {
             configs.lock().unwrap().get(sdk_key).map(|config| {
                 // Instead of cloning the entire config, extract what we need
-                (config.project._id.clone(), 
+                (config.project._id.clone(),
                  config.environment._id.clone(),
                  config.variables.len())
             })
         });
-        
+
         let (project_id, environment_id, var_count) = config_result.ok_or(errors::missing_variable())?;
-        
+
         // For now, return a minimal bucketed config to get compilation working
         // This would need to be properly implemented based on the actual requirements
         let mut variable_map: HashMap<String, ReadOnlyVariable> = HashMap::new();

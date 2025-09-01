@@ -14,6 +14,8 @@ pub mod platform_data;
 pub mod target;
 pub mod user;
 pub mod versioncompare;
+mod config_tests;
+mod filter_tests;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

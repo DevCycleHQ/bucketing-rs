@@ -1,12 +1,15 @@
 pub(crate) mod murmurhash {
     use crate::constants;
     use murmur3::murmur3_32;
+    use serde::{Deserialize, Serialize};
 
     pub(crate) fn generate_bounded_hash(input: String, seed: u32) -> f64 {
         let mut cursor = std::io::Cursor::new(input.as_bytes());
         let hash = murmur3_32(&mut cursor, seed).unwrap();
         return f64::from(hash) / f64::from(constants::MAX_HASH_VALUE);
     }
+
+    #[derive(Clone, Serialize, Deserialize)]
     pub(crate) struct BoundedHash {
         pub rollout_hash: f64,
         pub bucketing_hash: f64,

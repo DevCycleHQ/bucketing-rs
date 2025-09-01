@@ -1,21 +1,23 @@
 pub mod feature {
     use std::collections::HashMap;
+    use serde::{Deserialize, Serialize};
 
     use crate::target::target::Target;
 
-    #[derive(Clone)]
+    #[derive(Clone, Serialize, Deserialize)]
     pub struct VariationVariable {
         pub _var: String,             // `json:"_var"`
         pub value: serde_json::Value, // {} `json:"value"`
     }
-    #[derive(Clone)]
+    #[derive(Clone, Serialize, Deserialize)]
     pub struct ReadOnlyVariable {
         pub id: String,
         pub key: String,
+        #[serde(rename = "type")]
         pub _type: String,
         pub value: serde_json::Value,
     }
-    #[derive(Clone)]
+    #[derive(Clone, Serialize, Deserialize)]
     pub(crate) struct Variation {
         pub(crate) _id: String,
         pub(crate) name: String,
@@ -23,7 +25,7 @@ pub mod feature {
         pub(crate) variables: Vec<VariationVariable>,
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Serialize, Deserialize)]
     pub struct FeatureVariation {
         pub feature: String,   // `json:"_feature"`
         pub variation: String, // `json:"_variation"`
@@ -40,33 +42,43 @@ pub mod feature {
         }
     }
 
+    #[derive(Clone, Serialize, Deserialize)]
     pub struct ConfigFeature {
         pub _id: String,
-        pub featuretype: String,
+        #[serde(rename = "type")]
+        pub _type: String,
         pub key: String,
         pub variations: Vec<Variation>,
         pub configuration: FeatureConfiguration,
+        #[serde(default)]
         pub settings: String,
+        #[serde(default)]
+        pub tags: Vec<String>,
     }
 
+    #[derive(Clone, Serialize, Deserialize)]
     pub struct FeatureConfiguration {
         pub _id: String,
+        #[serde(default)]
         pub prerequisites: Vec<FeaturePrerequisites>,
-        pub winning_variation: FeatureVariation,
+        #[serde(default)]
+        pub winning_variation: Option<FeatureVariation>,
+        #[serde(default)]
         pub forced_users: HashMap<String, String>,
         pub targets: Vec<Target>,
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Serialize, Deserialize)]
     pub struct FeaturePrerequisites {
         _feature: String,   // `json:"_feature"`
         comparator: String, // `json:"comparator"`
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Serialize, Deserialize)]
     pub struct Feature {
         pub _id: String,
         pub key: String,
+        #[serde(rename = "type")]
         pub _type: String,
         pub variation: String,
         pub variationkey: String,

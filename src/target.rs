@@ -7,12 +7,15 @@ pub(crate) mod target {
     use crate::filters::filters::AudienceOperator;
     use crate::murmurhash::murmurhash;
 
+    #[derive(Clone, Serialize, Deserialize)]
     pub(crate) struct Target {
         pub(crate) _id: String,
+        #[serde(rename = "_audience")]
         pub(crate) audience: Audience,
-        pub(crate) rollout: Rollout,
+        #[serde(default)]
+        pub(crate) rollout: Option<Rollout>,
         pub(crate) distribution: Vec<TargetDistribution>,
-        //#[serde_json::serde(rename = "bucketingKey")]
+        #[serde(rename = "bucketingKey", default = "default_bucketing_key")]
         pub(crate) bucketingkey: String,
     }
 
@@ -36,6 +39,7 @@ pub(crate) mod target {
         }
     }
 
+    #[derive(Clone, Serialize, Deserialize)]
     pub struct Audience {
         pub(crate) _id: String,
         pub(crate) filters: AudienceOperator,
@@ -65,8 +69,13 @@ pub(crate) mod target {
         pub(crate) percentage: f64,
     }
 
+    #[derive(Clone, Serialize, Deserialize)]
     pub(crate) struct TargetAndHashes {
         pub(crate) target_id: String,
         pub(crate) bounded_hash: murmurhash::BoundedHash,
+    }
+
+    fn default_bucketing_key() -> String {
+        "user_id".to_string()
     }
 }

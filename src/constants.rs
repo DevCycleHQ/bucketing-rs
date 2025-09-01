@@ -22,12 +22,12 @@ pub const SUB_TYPE_APP_VERSION: &str = "appVersion";
 pub const SUB_TYPE_DEVICE_MODEL: &str = "deviceModel";
 pub const SUB_TYPE_CUSTOM_DATA: &str = "customData";
 
-pub const COMPARATOR_EQUAL: &str = ":&str =";
-pub const COMPARATOR_NOT_EQUAL: &str = "!:&str =";
+pub const COMPARATOR_EQUAL: &str = "=";
+pub const COMPARATOR_NOT_EQUAL: &str = "!=";
 pub const COMPARATOR_GREATER: &str = ">";
-pub const COMPARATOR_GREATER_EQUAL: &str = ">:&str =";
+pub const COMPARATOR_GREATER_EQUAL: &str = ">=";
 pub const COMPARATOR_LESS: &str = "<";
-pub const COMPARATOR_LESS_EQUAL: &str = "<:&str =";
+pub const COMPARATOR_LESS_EQUAL: &str = "<=";
 pub const COMPARATOR_EXIST: &str = "exist";
 pub const COMPARATOR_NOT_EXIST: &str = "!exist";
 pub const COMPARATOR_CONTAIN: &str = "contain";
