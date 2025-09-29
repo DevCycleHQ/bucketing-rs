@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod filter_tests {
-    use crate::filters::filters::*;
-    use crate::user::user::PopulatedUser;
-    use crate::platform_data::platform_data::PlatformData;
     use crate::constants;
-    use std::collections::HashMap;
+    use crate::filters::*;
+    use crate::platform_data::PlatformData;
+    use crate::user::PopulatedUser;
     use chrono::Utc;
+    use std::collections::HashMap;
 
     fn create_test_user() -> PopulatedUser {
         PopulatedUser {
@@ -18,8 +18,14 @@ mod filter_tests {
             app_build: "456".to_string(),
             custom_data: {
                 let mut data = HashMap::new();
-                data.insert("subscription_type".to_string(), serde_json::Value::String("premium".to_string()));
-                data.insert("account_age".to_string(), serde_json::Value::Number(serde_json::Number::from(365)));
+                data.insert(
+                    "subscription_type".to_string(),
+                    serde_json::Value::String("premium".to_string()),
+                );
+                data.insert(
+                    "account_age".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(365)),
+                );
                 data
             },
             private_custom_data: HashMap::new(),
@@ -159,7 +165,7 @@ mod filter_tests {
             comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
             values: vec![
                 serde_json::Value::String("subscription_type".to_string()), // key
-                serde_json::Value::String("premium".to_string()), // value to match
+                serde_json::Value::String("premium".to_string()),           // value to match
             ],
             filters: vec![],
             operator: None,
@@ -322,17 +328,15 @@ mod filter_tests {
             sub_type: None,
             comparator: None,
             values: vec![],
-            filters: vec![
-                Filter {
-                    _type: constants::TYPE_ALL.to_string(),
-                    sub_type: None,
-                    comparator: None,
-                    values: vec![],
-                    filters: vec![],
-                    operator: None,
-                    _audiences: vec![],
-                }
-            ],
+            filters: vec![Filter {
+                _type: constants::TYPE_ALL.to_string(),
+                sub_type: None,
+                comparator: None,
+                values: vec![],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            }],
             operator: Some(constants::OPERATOR_AND.to_string()),
             _audiences: vec![],
         };

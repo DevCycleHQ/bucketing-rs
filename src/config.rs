@@ -1,120 +1,118 @@
-pub(crate) mod config {
-    use crate::feature::feature::ConfigFeature;
-    use crate::filters::filters::NoIdAudience;
-    use std::collections::HashMap;
-    use serde::{Deserialize, Serialize};
+use crate::feature::ConfigFeature;
+use crate::filters::NoIdAudience;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct Project {
-        pub _id: String,
-        pub key: String,
-        pub a0_organization: String,
-        pub settings: ProjectSettings,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct Project {
+    pub _id: String,
+    pub key: String,
+    pub a0_organization: String,
+    pub settings: ProjectSettings,
+}
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct ProjectSettings {
-        #[serde(alias = "edgeDB")]
-        pub edgedb: EdgeDBSettings,
-        #[serde(alias = "optIn")]
-        pub optin: OptInSettings,
-        #[serde(alias = "disablePassthroughRollouts", default)]
-        pub disable_passthrough_rollouts: bool,
-        #[serde(default)]
-        pub obfuscation: Option<ObfuscationSettings>,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct ProjectSettings {
+    #[serde(alias = "edgeDB")]
+    pub edgedb: EdgeDBSettings,
+    #[serde(alias = "optIn")]
+    pub optin: OptInSettings,
+    #[serde(alias = "disablePassthroughRollouts", default)]
+    pub disable_passthrough_rollouts: bool,
+    #[serde(default)]
+    pub obfuscation: Option<ObfuscationSettings>,
+}
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct EdgeDBSettings {
-        pub enabled: bool,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct EdgeDBSettings {
+    pub enabled: bool,
+}
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct OptInSettings {
-        pub enabled: bool,
-        #[serde(default)]
-        pub title: String,
-        #[serde(default)]
-        pub description: String,
-        #[serde(default, alias = "imageURL")]
-        pub image_url: String,
-        #[serde(default)]
-        pub colors: OptInColors,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct OptInSettings {
+    pub enabled: bool,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default, alias = "imageURL")]
+    pub image_url: String,
+    #[serde(default)]
+    pub colors: OptInColors,
+}
 
-    #[derive(Clone, Serialize, Deserialize, Default)]
-    pub(crate) struct OptInColors {
-        #[serde(default)]
-        pub primary: String,
-        #[serde(default)]
-        pub secondary: String,
-    }
+#[derive(Clone, Serialize, Deserialize, Default)]
+pub(crate) struct OptInColors {
+    #[serde(default)]
+    pub primary: String,
+    #[serde(default)]
+    pub secondary: String,
+}
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct ObfuscationSettings {
-        pub required: bool,
-        pub enabled: bool,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct ObfuscationSettings {
+    pub required: bool,
+    pub enabled: bool,
+}
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct Environment {
-        pub _id: String,
-        pub key: String,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct Environment {
+    pub _id: String,
+    pub key: String,
+}
 
-    #[derive(Serialize, Deserialize)]
-    pub(crate) struct BucketingConfiguration {
-        pub flush_events_interval: u64,
-        pub disable_automatic_event_logging: bool,
-        pub disable_custom_event_logging: bool,
-        pub disable_push_state_event_logging: bool,
-    }
+#[derive(Serialize, Deserialize)]
+pub(crate) struct BucketingConfiguration {
+    pub flush_events_interval: u64,
+    pub disable_automatic_event_logging: bool,
+    pub disable_custom_event_logging: bool,
+    pub disable_push_state_event_logging: bool,
+}
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct SSE {
-        pub hostname: String,
-        pub path: String,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct SSE {
+    pub hostname: String,
+    pub path: String,
+}
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct SSEHost {
-        pub hostname: String,
-        pub path: String,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct SSEHost {
+    pub hostname: String,
+    pub path: String,
+}
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct Variable {
-        pub _id: String,
-        #[serde(rename = "type")]
-        pub _type: String,
-        pub key: String,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct Variable {
+    pub _id: String,
+    #[serde(rename = "type")]
+    pub _type: String,
+    pub key: String,
+}
 
-    #[derive(Clone, Serialize, Deserialize)]
-    pub(crate) struct FullConfig {
-        pub project: Project,
-        pub environment: Environment,
-        pub features: Vec<ConfigFeature>,
-        pub variables: Vec<Variable>,
-        #[serde(rename = "variableHashes")]
-        pub variable_hashes: HashMap<String, u64>,
-        #[serde(default)]
-        pub audiences: HashMap<String, serde_json::Value>,
-        #[serde(rename = "debugUsers", default)]
-        pub debug_users: Vec<serde_json::Value>,
-        #[serde(default)]
-        pub sse: Option<SSE>,
-    }
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct FullConfig {
+    pub project: Project,
+    pub environment: Environment,
+    pub features: Vec<ConfigFeature>,
+    pub variables: Vec<Variable>,
+    #[serde(rename = "variableHashes")]
+    pub variable_hashes: HashMap<String, u64>,
+    #[serde(default)]
+    pub audiences: HashMap<String, serde_json::Value>,
+    #[serde(rename = "debugUsers", default)]
+    pub debug_users: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub sse: Option<SSE>,
+}
 
-    pub(crate) struct ConfigBody<'a> {
-        pub(crate) project: Project,
-        pub(crate) audiences: &'a HashMap<String, NoIdAudience>,
-        pub(crate) environment: Environment,
-        pub(crate) features: Vec<ConfigFeature>,
-        pub(crate) variables: Vec<Variable>,
-        pub(crate) sse: SSE,
-        pub(crate) variable_id_map: HashMap<String, Variable>,
-        pub(crate) variable_key_map: HashMap<String, Variable>,
-        pub(crate) variable_id_to_feature_map: HashMap<String, ConfigFeature>,
-    }
+pub(crate) struct ConfigBody<'a> {
+    pub(crate) project: Project,
+    pub(crate) audiences: &'a HashMap<String, NoIdAudience>,
+    pub(crate) environment: Environment,
+    pub(crate) features: Vec<ConfigFeature>,
+    pub(crate) variables: Vec<Variable>,
+    pub(crate) sse: SSE,
+    pub(crate) variable_id_map: HashMap<String, Variable>,
+    pub(crate) variable_key_map: HashMap<String, Variable>,
+    pub(crate) variable_id_to_feature_map: HashMap<String, ConfigFeature>,
 }

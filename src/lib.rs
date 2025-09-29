@@ -1,5 +1,5 @@
-use crate::errors::errors::DevCycleError;
-use crate::user::user::PopulatedUser;
+use crate::errors::DevCycleError;
+use crate::user::{BucketedUserConfig, PopulatedUser};
 use std::collections::HashMap;
 
 pub mod bucketing;
@@ -14,18 +14,22 @@ pub mod platform_data;
 pub mod target;
 pub mod user;
 pub mod versioncompare;
+
+#[cfg(test)]
 mod config_tests;
+#[cfg(test)]
 mod filter_tests;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
+
 pub async unsafe fn generate_bucketed_config(
     sdk_key: &str,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
-) -> Result<user::user::BucketedUserConfig, DevCycleError> {
-    bucketing::bucketing::generate_bucketed_config(sdk_key, user, client_custom_data).await
+) -> Result<BucketedUserConfig, DevCycleError> {
+    bucketing::generate_bucketed_config(sdk_key, user, client_custom_data).await
 }
 
 #[cfg(test)]

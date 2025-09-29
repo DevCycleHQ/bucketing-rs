@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::config::config::*;
+    use crate::config::*;
     use serde_json;
 
     #[test]
@@ -27,7 +27,8 @@ mod tests {
             }
         });
 
-        let project: Project = serde_json::from_value(json_data).expect("Failed to parse project JSON");
+        let project: Project =
+            serde_json::from_value(json_data).expect("Failed to parse project JSON");
 
         assert_eq!(project._id, "proj_123");
         assert_eq!(project.key, "my-project");
@@ -46,7 +47,8 @@ mod tests {
             "key": "development"
         }"#;
 
-        let environment: Environment = serde_json::from_str(json_str).expect("Failed to parse environment JSON");
+        let environment: Environment =
+            serde_json::from_str(json_str).expect("Failed to parse environment JSON");
 
         assert_eq!(environment._id, "env_789");
         assert_eq!(environment.key, "development");
@@ -60,7 +62,8 @@ mod tests {
             "key": "enable_feature"
         }"#;
 
-        let variable: Variable = serde_json::from_str(json_str).expect("Failed to parse variable JSON");
+        let variable: Variable =
+            serde_json::from_str(json_str).expect("Failed to parse variable JSON");
 
         assert_eq!(variable._id, "var_123");
         assert_eq!(variable._type, "Boolean");
@@ -70,9 +73,18 @@ mod tests {
     #[test]
     fn test_parse_variable_json_with_different_types() {
         let test_cases = vec![
-            (r#"{"_id": "var_1", "type": "String", "key": "text_value"}"#, "String"),
-            (r#"{"_id": "var_2", "type": "Number", "key": "numeric_value"}"#, "Number"),
-            (r#"{"_id": "var_3", "type": "JSON", "key": "json_value"}"#, "JSON"),
+            (
+                r#"{"_id": "var_1", "type": "String", "key": "text_value"}"#,
+                "String",
+            ),
+            (
+                r#"{"_id": "var_2", "type": "Number", "key": "numeric_value"}"#,
+                "Number",
+            ),
+            (
+                r#"{"_id": "var_3", "type": "JSON", "key": "json_value"}"#,
+                "JSON",
+            ),
         ];
 
         for (json_str, expected_type) in test_cases {
@@ -104,8 +116,8 @@ mod tests {
             "disable_push_state_event_logging": false
         }"#;
 
-        let config: BucketingConfiguration = serde_json::from_str(json_str)
-            .expect("Failed to parse bucketing configuration JSON");
+        let config: BucketingConfiguration =
+            serde_json::from_str(json_str).expect("Failed to parse bucketing configuration JSON");
 
         assert_eq!(config.flush_events_interval, 30000);
         assert_eq!(config.disable_automatic_event_logging, false);
@@ -140,14 +152,20 @@ mod tests {
         let json_string = serde_json::to_string(&project).expect("Failed to serialize project");
 
         // Deserialize back from JSON
-        let deserialized: Project = serde_json::from_str(&json_string)
-            .expect("Failed to deserialize project");
+        let deserialized: Project =
+            serde_json::from_str(&json_string).expect("Failed to deserialize project");
 
         assert_eq!(project._id, deserialized._id);
         assert_eq!(project.key, deserialized.key);
         assert_eq!(project.a0_organization, deserialized.a0_organization);
-        assert_eq!(project.settings.edgedb.enabled, deserialized.settings.edgedb.enabled);
-        assert_eq!(project.settings.optin.title, deserialized.settings.optin.title);
+        assert_eq!(
+            project.settings.edgedb.enabled,
+            deserialized.settings.edgedb.enabled
+        );
+        assert_eq!(
+            project.settings.optin.title,
+            deserialized.settings.optin.title
+        );
     }
 
     #[test]
@@ -170,8 +188,8 @@ mod tests {
             }
         ]"#;
 
-        let variables: Vec<Variable> = serde_json::from_str(json_str)
-            .expect("Failed to parse variables array JSON");
+        let variables: Vec<Variable> =
+            serde_json::from_str(json_str).expect("Failed to parse variables array JSON");
 
         assert_eq!(variables.len(), 3);
         assert_eq!(variables[0]._id, "var_bool_1");
@@ -205,7 +223,10 @@ mod tests {
         }"#;
 
         let result: Result<Project, _> = serde_json::from_str(json_missing_key);
-        assert!(result.is_err(), "Should fail when required field 'key' is missing");
+        assert!(
+            result.is_err(),
+            "Should fail when required field 'key' is missing"
+        );
     }
 
     #[test]
@@ -232,8 +253,8 @@ mod tests {
             }
         });
 
-        let project: Project = serde_json::from_value(json_data)
-            .expect("Failed to parse complex project JSON");
+        let project: Project =
+            serde_json::from_value(json_data).expect("Failed to parse complex project JSON");
 
         assert_eq!(project._id, "60f7c84e4f9c4a001f6b8c23");
         assert_eq!(project.key, "production-app");
@@ -273,12 +294,12 @@ mod tests {
         };
 
         // Serialize to JSON string
-        let json_string = serde_json::to_string(&original_variable)
-            .expect("Failed to serialize variable");
+        let json_string =
+            serde_json::to_string(&original_variable).expect("Failed to serialize variable");
 
         // Deserialize back to JSON string
-        let deserialized: Variable = serde_json::from_str(&json_string)
-            .expect("Failed to deserialize variable");
+        let deserialized: Variable =
+            serde_json::from_str(&json_string).expect("Failed to deserialize variable");
 
         assert_eq!(original_variable._id, deserialized._id);
         assert_eq!(original_variable._type, deserialized._type);
@@ -298,8 +319,8 @@ mod tests {
         println!("Pretty JSON output:\n{}", pretty_json);
 
         // Verify it can be parsed back
-        let parsed: Environment = serde_json::from_str(&pretty_json)
-            .expect("Failed to parse pretty JSON");
+        let parsed: Environment =
+            serde_json::from_str(&pretty_json).expect("Failed to parse pretty JSON");
 
         assert_eq!(environment._id, parsed._id);
         assert_eq!(environment.key, parsed.key);
@@ -314,8 +335,8 @@ mod tests {
             "disable_push_state_event_logging": true
         });
 
-        let config: BucketingConfiguration = serde_json::from_value(json_data)
-            .expect("Failed to parse bucketing configuration");
+        let config: BucketingConfiguration =
+            serde_json::from_value(json_data).expect("Failed to parse bucketing configuration");
 
         assert_eq!(config.flush_events_interval, 15000);
         assert_eq!(config.disable_automatic_event_logging, true);
@@ -330,11 +351,11 @@ mod tests {
             path: "/events".to_string(),
         };
 
-        let json_string = serde_json::to_string_pretty(&sse)
-            .expect("Failed to serialize SSE config");
+        let json_string =
+            serde_json::to_string_pretty(&sse).expect("Failed to serialize SSE config");
 
-        let deserialized: SSE = serde_json::from_str(&json_string)
-            .expect("Failed to deserialize SSE config");
+        let deserialized: SSE =
+            serde_json::from_str(&json_string).expect("Failed to deserialize SSE config");
 
         assert_eq!(sse.hostname, deserialized.hostname);
         assert_eq!(sse.path, deserialized.path);
@@ -344,8 +365,8 @@ mod tests {
     fn test_parse_real_world_config() {
         let json_str = r#"{"project":{"_id":"638680c459f1b81cc9e6c557","key":"test-harness-data","a0_organization":"org_U9F8YMaTChTEndWw","settings":{"edgeDB":{"enabled":false},"optIn":{"enabled":false,"colors":{}},"obfuscation":{"required":false,"enabled":false},"disablePassthroughRollouts":true}},"environment":{"_id":"638680c459f1b81cc9e6c55b","key":"production"},"features":[{"_id":"689d0585cdd7cf74e6abf469","key":"redis","type":"release","variations":[{"key":"variation-on","name":"Variation On","variables":[{"_var":"689d0585cdd7cf74e6abf46f","value":true}],"_id":"689d0585cdd7cf74e6abf474"},{"key":"variation-off","name":"Variation Off","variables":[{"_var":"689d0585cdd7cf74e6abf46f","value":false}],"_id":"689d0585cdd7cf74e6abf475"}],"tags":[],"configuration":{"_id":"689d0585cdd7cf74e6abf478","targets":[{"_id":"689d05956884124802d69897","distribution":[{"_variation":"689d0585cdd7cf74e6abf474","percentage":1}],"_audience":{"_id":"","filters":{"filters":[{"_audiences":[],"values":[],"type":"all"}],"operator":"and"}},"bucketingKey":"user_id"}]}}],"variables":[{"_id":"638681f059f1b81cc9e6c7fa","key":"bool-var","type":"Boolean"},{"_id":"638681f059f1b81cc9e6c7fd","key":"json-var","type":"JSON"},{"_id":"638681f059f1b81cc9e6c7fc","key":"number-var","type":"Number"},{"_id":"689d0585cdd7cf74e6abf46f","key":"redis","type":"Boolean"},{"_id":"6386813a59f1b81cc9e6c68f","key":"schedule-feature","type":"Boolean"},{"_id":"638681f059f1b81cc9e6c7fb","key":"string-var","type":"String"},{"_id":"638680d6fcb67b96878d90e8","key":"test-harness","type":"Boolean"}],"variableHashes":{"bool-var":1457472961,"json-var":3396881128,"number-var":1339101624,"redis":2717177077,"schedule-feature":3964025047,"string-var":2569899200,"test-harness":4260170344},"audiences":{},"debugUsers":[],"sse":{"hostname":"https://sse.devcycle.com","path":"/event-stream?key=azZpGQ.64zbWw:RXCvOj0NO8V5CwpiNhiImhd1n7zsiS0QXgcOWElBxg4&v=1.2&channels=dvc_server_1604761d90fc68a649755aa89b487d1b6993a43f_v1"}}"#;
 
-        let config: FullConfig = serde_json::from_str(json_str)
-            .expect("Failed to parse real-world config JSON");
+        let config: FullConfig =
+            serde_json::from_str(json_str).expect("Failed to parse real-world config JSON");
 
         // Test project parsing
         assert_eq!(config.project._id, "638680c459f1b81cc9e6c557");
@@ -378,13 +399,17 @@ mod tests {
         assert_eq!(config.variables.len(), 7);
 
         // Find and test specific variables
-        let bool_var = config.variables.iter()
+        let bool_var = config
+            .variables
+            .iter()
             .find(|v| v.key == "bool-var")
             .expect("bool-var should exist");
         assert_eq!(bool_var._id, "638681f059f1b81cc9e6c7fa");
         assert_eq!(bool_var._type, "Boolean");
 
-        let redis_var = config.variables.iter()
+        let redis_var = config
+            .variables
+            .iter()
             .find(|v| v.key == "redis")
             .expect("redis variable should exist");
         assert_eq!(redis_var._id, "689d0585cdd7cf74e6abf46f");
@@ -394,7 +419,10 @@ mod tests {
         assert_eq!(config.variable_hashes.len(), 7);
         assert_eq!(config.variable_hashes.get("bool-var"), Some(&1457472961));
         assert_eq!(config.variable_hashes.get("redis"), Some(&2717177077));
-        assert_eq!(config.variable_hashes.get("test-harness"), Some(&4260170344));
+        assert_eq!(
+            config.variable_hashes.get("test-harness"),
+            Some(&4260170344)
+        );
 
         // Test SSE config - now properly unwrapping the Option
         let sse = config.sse.as_ref().expect("SSE should be present");
@@ -429,8 +457,8 @@ mod tests {
             }
         });
 
-        let project: Project = serde_json::from_value(json_data)
-            .expect("Failed to parse project with field aliases");
+        let project: Project =
+            serde_json::from_value(json_data).expect("Failed to parse project with field aliases");
 
         assert_eq!(project.settings.edgedb.enabled, true);
         assert_eq!(project.settings.optin.enabled, true);
@@ -460,21 +488,24 @@ mod tests {
         assert_eq!(variables.len(), 7);
 
         // Test that we have the expected variable types
-        let type_counts = variables.iter()
-            .fold(std::collections::HashMap::new(), |mut acc, var| {
-                *acc.entry(var._type.as_str()).or_insert(0) += 1;
-                acc
-            });
+        let type_counts =
+            variables
+                .iter()
+                .fold(std::collections::HashMap::new(), |mut acc, var| {
+                    *acc.entry(var._type.as_str()).or_insert(0) += 1;
+                    acc
+                });
 
         assert_eq!(type_counts.get("Boolean"), Some(&4)); // bool-var, redis, schedule-feature, test-harness
-        assert_eq!(type_counts.get("String"), Some(&1));  // string-var
-        assert_eq!(type_counts.get("Number"), Some(&1));  // number-var
-        assert_eq!(type_counts.get("JSON"), Some(&1));    // json-var
+        assert_eq!(type_counts.get("String"), Some(&1)); // string-var
+        assert_eq!(type_counts.get("Number"), Some(&1)); // number-var
+        assert_eq!(type_counts.get("JSON"), Some(&1)); // json-var
     }
 
     #[tokio::test]
     async fn test_parse_production_config_from_cdn() {
-        let config_url = "https://config-cdn.devcycle.com/config/v2/server/dvc_server_token_hash.json";
+        let config_url =
+            "https://config-cdn.devcycle.com/config/v2/server/dvc_server_token_hash.json";
 
         // Fetch the config from the CDN
         let client = reqwest::Client::new();
@@ -485,30 +516,48 @@ mod tests {
             .await
             .expect("Failed to fetch config from CDN");
 
-        assert!(response.status().is_success(), "HTTP request failed with status: {}", response.status());
+        assert!(
+            response.status().is_success(),
+            "HTTP request failed with status: {}",
+            response.status()
+        );
 
-        let config_json = response
-            .text()
-            .await
-            .expect("Failed to read response text");
+        let config_json = response.text().await.expect("Failed to read response text");
 
-        println!("Fetched config JSON (first 500 chars): {}",
-                 &config_json.chars().take(500).collect::<String>());
+        println!(
+            "Fetched config JSON (first 500 chars): {}",
+            &config_json.chars().take(500).collect::<String>()
+        );
 
         // Parse the JSON into our config structure
-        let config: FullConfig = serde_json::from_str(&config_json)
-            .expect("Failed to parse production config JSON");
+        let config: FullConfig =
+            serde_json::from_str(&config_json).expect("Failed to parse production config JSON");
 
         // Validate the basic structure
-        assert!(!config.project._id.is_empty(), "Project ID should not be empty");
-        assert!(!config.project.key.is_empty(), "Project key should not be empty");
-        assert!(!config.environment._id.is_empty(), "Environment ID should not be empty");
-        assert!(!config.environment.key.is_empty(), "Environment key should not be empty");
+        assert!(
+            !config.project._id.is_empty(),
+            "Project ID should not be empty"
+        );
+        assert!(
+            !config.project.key.is_empty(),
+            "Project key should not be empty"
+        );
+        assert!(
+            !config.environment._id.is_empty(),
+            "Environment ID should not be empty"
+        );
+        assert!(
+            !config.environment.key.is_empty(),
+            "Environment key should not be empty"
+        );
 
         // Validate we have some data
         println!("Production config summary:");
         println!("  Project: {} ({})", config.project.key, config.project._id);
-        println!("  Environment: {} ({})", config.environment.key, config.environment._id);
+        println!(
+            "  Environment: {} ({})",
+            config.environment.key, config.environment._id
+        );
         println!("  Features: {}", config.features.len());
         println!("  Variables: {}", config.variables.len());
         println!("  Variable hashes: {}", config.variable_hashes.len());
@@ -518,7 +567,10 @@ mod tests {
             println!("  SSE hostname: {}", sse.hostname);
 
             // Test that SSE config is valid
-            assert!(sse.hostname.starts_with("http"), "SSE hostname should be a URL");
+            assert!(
+                sse.hostname.starts_with("http"),
+                "SSE hostname should be a URL"
+            );
             assert!(!sse.path.is_empty(), "SSE path should not be empty");
         } else {
             println!("  SSE: Not present in config");
@@ -528,27 +580,50 @@ mod tests {
         if !config.variables.is_empty() {
             let first_var = &config.variables[0];
             assert!(!first_var._id.is_empty(), "Variable ID should not be empty");
-            assert!(!first_var.key.is_empty(), "Variable key should not be empty");
-            assert!(!first_var._type.is_empty(), "Variable type should not be empty");
+            assert!(
+                !first_var.key.is_empty(),
+                "Variable key should not be empty"
+            );
+            assert!(
+                !first_var._type.is_empty(),
+                "Variable type should not be empty"
+            );
 
             // Check that we have valid variable types
             let valid_types = ["Boolean", "String", "Number", "JSON"];
-            assert!(valid_types.contains(&first_var._type.as_str()),
-                    "Variable type '{}' should be one of: {:?}", first_var._type, valid_types);
+            assert!(
+                valid_types.contains(&first_var._type.as_str()),
+                "Variable type '{}' should be one of: {:?}",
+                first_var._type,
+                valid_types
+            );
         }
 
         // Test features if any exist
         if !config.features.is_empty() {
             let first_feature = &config.features[0];
-            assert!(!first_feature._id.is_empty(), "Feature ID should not be empty");
-            assert!(!first_feature.key.is_empty(), "Feature key should not be empty");
-            assert!(!first_feature._type.is_empty(), "Feature type should not be empty");
+            assert!(
+                !first_feature._id.is_empty(),
+                "Feature ID should not be empty"
+            );
+            assert!(
+                !first_feature.key.is_empty(),
+                "Feature key should not be empty"
+            );
+            assert!(
+                !first_feature._type.is_empty(),
+                "Feature type should not be empty"
+            );
         }
 
         // Test variable hashes correspondence
         for variable in &config.variables {
             if let Some(hash_value) = config.variable_hashes.get(&variable.key) {
-                assert!(*hash_value > 0, "Variable hash for '{}' should be positive", variable.key);
+                assert!(
+                    *hash_value > 0,
+                    "Variable hash for '{}' should be positive",
+                    variable.key
+                );
             }
         }
 
@@ -568,10 +643,16 @@ mod tests {
             .expect("Failed to make HTTP request");
 
         // This should return a 404 or similar error
-        assert!(!response.status().is_success(),
-                "Request to invalid config URL should fail, got status: {}", response.status());
+        assert!(
+            !response.status().is_success(),
+            "Request to invalid config URL should fail, got status: {}",
+            response.status()
+        );
 
-        println!("✅ Error handling for invalid config URL works correctly (status: {})", response.status());
+        println!(
+            "✅ Error handling for invalid config URL works correctly (status: {})",
+            response.status()
+        );
     }
 
     #[test]
@@ -580,16 +661,17 @@ mod tests {
 
         // Load the config from the resources file
         let config_path = "tests/resources/test_config.json";
-        let config_json = fs::read_to_string(config_path)
-            .expect("Failed to read test config file");
+        let config_json = fs::read_to_string(config_path).expect("Failed to read test config file");
 
         println!("Loaded config from resources file: {}", config_path);
-        println!("Config JSON (first 300 chars): {}",
-                 &config_json.chars().take(300).collect::<String>());
+        println!(
+            "Config JSON (first 300 chars): {}",
+            &config_json.chars().take(300).collect::<String>()
+        );
 
         // Parse the JSON into our config structure
-        let config: FullConfig = serde_json::from_str(&config_json)
-            .expect("Failed to parse hardcoded config JSON");
+        let config: FullConfig =
+            serde_json::from_str(&config_json).expect("Failed to parse hardcoded config JSON");
 
         // Validate project structure
         assert_eq!(config.project._id, "6216420c2ea68943c8833c09");
@@ -600,7 +682,10 @@ mod tests {
         assert_eq!(config.project.settings.edgedb.enabled, false);
         assert_eq!(config.project.settings.optin.enabled, true);
         assert_eq!(config.project.settings.optin.title, "Beta Feature Access");
-        assert_eq!(config.project.settings.optin.description, "Get early access to new features below");
+        assert_eq!(
+            config.project.settings.optin.description,
+            "Get early access to new features below"
+        );
         assert_eq!(config.project.settings.optin.colors.primary, "#0042f9");
         assert_eq!(config.project.settings.optin.colors.secondary, "#facc15");
 
@@ -632,7 +717,10 @@ mod tests {
 
         let number_var = &variation_on.variables[1];
         assert_eq!(number_var._var, "64de2b2486d4b575121589db");
-        assert_eq!(number_var.value, serde_json::Value::Number(serde_json::Number::from(123)));
+        assert_eq!(
+            number_var.value,
+            serde_json::Value::Number(serde_json::Number::from(123))
+        );
 
         let float_var = &variation_on.variables[2];
         assert_eq!(float_var._var, "64de2b9486d4b275121589d1");
@@ -640,7 +728,10 @@ mod tests {
 
         let string_var = &variation_on.variables[3];
         assert_eq!(string_var._var, "64de2b2486d4b575121589dc");
-        assert_eq!(string_var.value, serde_json::Value::String("on".to_string()));
+        assert_eq!(
+            string_var.value,
+            serde_json::Value::String("on".to_string())
+        );
 
         let json_var = &variation_on.variables[4];
         assert_eq!(json_var._var, "64de88bcc99ba02630f3df80");
@@ -659,7 +750,10 @@ mod tests {
         assert_eq!(bool_var_off.value, serde_json::Value::Bool(false));
 
         let number_var_off = &variation_off.variables[1];
-        assert_eq!(number_var_off.value, serde_json::Value::Number(serde_json::Number::from(0)));
+        assert_eq!(
+            number_var_off.value,
+            serde_json::Value::Number(serde_json::Number::from(0))
+        );
 
         let json_var_off = &variation_off.variables[4];
         let expected_json_off = serde_json::json!({"message": "b"});
@@ -682,7 +776,9 @@ mod tests {
         // Validate variables
         assert_eq!(config.variables.len(), 5);
 
-        let variable_types: std::collections::HashMap<&str, &str> = config.variables.iter()
+        let variable_types: std::collections::HashMap<&str, &str> = config
+            .variables
+            .iter()
             .map(|v| (v.key.as_str(), v._type.as_str()))
             .collect();
 
@@ -695,22 +791,40 @@ mod tests {
         // Validate variable hashes
         assert_eq!(config.variable_hashes.len(), 4); // Note: only 4 hashes in the config
         assert_eq!(config.variable_hashes.get("test"), Some(&2447239932));
-        assert_eq!(config.variable_hashes.get("test-number-variable"), Some(&3332991395));
-        assert_eq!(config.variable_hashes.get("test-string-variable"), Some(&957171234));
-        assert_eq!(config.variable_hashes.get("test-json-variable"), Some(&2814889459));
+        assert_eq!(
+            config.variable_hashes.get("test-number-variable"),
+            Some(&3332991395)
+        );
+        assert_eq!(
+            config.variable_hashes.get("test-string-variable"),
+            Some(&957171234)
+        );
+        assert_eq!(
+            config.variable_hashes.get("test-json-variable"),
+            Some(&2814889459)
+        );
 
         // Check that SSE is not present in this config (should be None)
-        assert!(config.sse.is_none(), "SSE should not be present in this test config");
+        assert!(
+            config.sse.is_none(),
+            "SSE should not be present in this test config"
+        );
 
         // Print summary
         println!("✅ Hardcoded config validation summary:");
         println!("  Project: {} ({})", config.project.key, config.project._id);
-        println!("  Environment: {} ({})", config.environment.key, config.environment._id);
+        println!(
+            "  Environment: {} ({})",
+            config.environment.key, config.environment._id
+        );
         println!("  Features: {}", config.features.len());
         println!("  Variables: {}", config.variables.len());
         println!("  Variable Hashes: {}", config.variable_hashes.len());
         println!("  Variations in test feature: {}", feature.variations.len());
-        println!("  Variables per variation: {}", variation_on.variables.len());
+        println!(
+            "  Variables per variation: {}",
+            variation_on.variables.len()
+        );
 
         println!("✅ All validations passed for hardcoded config!");
     }
