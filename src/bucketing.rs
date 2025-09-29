@@ -36,7 +36,7 @@ pub fn determine_user_bucketing_value_for_target(
     return String::from(constants::DEFAULT_BUCKETING_VALUE);
 }
 
-pub fn get_current_rollout_percentage(
+pub(crate) fn get_current_rollout_percentage(
     rollout: Rollout,
     current_date: chrono::DateTime<chrono::Utc>,
 ) -> f64 {
@@ -110,7 +110,7 @@ pub fn get_current_rollout_percentage(
     }
 }
 
-pub unsafe fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_hash: f64) -> bool {
+pub(crate) unsafe fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_hash: f64) -> bool {
     match rollout {
         Some(r) => {
             let current_rollout_percentage = get_current_rollout_percentage(r, chrono::Utc::now());
@@ -120,7 +120,7 @@ pub unsafe fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_hash: f64
     }
 }
 
-pub unsafe fn evaluate_segmentation_for_feature(
+pub(crate) unsafe fn evaluate_segmentation_for_feature(
     config: *const ConfigBody,
     feature: *const ConfigFeature,
     mut user: PopulatedUser,
@@ -201,14 +201,15 @@ pub fn bucket_user_for_variation(
         user: PopulatedUser,
         client_custom_data: HashMap<String, serde_json::Value>,
     ) -> Result<BucketedUserConfig, DevCycleError> {
-        let config_result = configmanager::CONFIGS.with(|configs| {
-            configs.lock().unwrap().get(sdk_key).map(|config| {
+        let config_result = {
+            let configs = configmanager::CONFIGS.read().unwrap();
+            configs.get(sdk_key).map(|config| {
                 // Instead of cloning the entire config, extract what we need
                 (config.project._id.clone(),
                  config.environment._id.clone(),
                  config.variables.len())
             })
-        });
+        };
 
         let (project_id, environment_id, var_count) = config_result.ok_or(errors::missing_variable())?;
 
@@ -245,4 +246,3 @@ pub fn bucket_user_for_variation(
             variables: variable_map,
         })
     }
-

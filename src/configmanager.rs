@@ -1,7 +1,7 @@
 use crate::config::ConfigBody;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::RwLock;
+use once_cell::sync::Lazy;
 
-thread_local! {
-     pub static CONFIGS: Mutex<HashMap<String, ConfigBody<'static>>> = Mutex::new(HashMap::new());
-}
+pub(crate) static CONFIGS: Lazy<RwLock<HashMap<String, ConfigBody<'static>>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
