@@ -2,6 +2,7 @@ use crate::feature::ConfigFeature;
 use crate::filters::NoIdAudience;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use chrono::DateTime;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Project {
@@ -115,4 +116,70 @@ pub(crate) struct ConfigBody<'a> {
     pub(crate) variable_id_map: HashMap<String, Variable>,
     pub(crate) variable_key_map: HashMap<String, Variable>,
     pub(crate) variable_id_to_feature_map: HashMap<String, ConfigFeature>,
+    etag: String,
+    ray_id: String,
+    last_modified: DateTime<chrono::Utc>,
+}
+
+trait ConfigOperators {
+    fn get_variable_for_key(&self, key: &str) -> Option<&Variable>;
+    fn get_feature_for_key(&self, key: &str) -> Option<&ConfigFeature>;
+    fn get_variable_for_id(&self, id: &str) -> Option<&Variable>;
+    fn get_feature_for_variable_id(&self, variable_id: &str) -> Option<&ConfigFeature>;
+    fn compile(&mut self);
+}
+impl ConfigOperators for ConfigBody<'_> {
+    fn get_variable_for_key(&self, key: &str) -> Option<&Variable> {
+        if let Some(variable) = self.variable_key_map.get(key) {
+            return Some(variable);
+        }
+        None
+    }
+
+    fn get_feature_for_key(&self, key: &str) -> Option<&ConfigFeature> {
+        if let Some(feature) = self.features.iter().find(|f| f.key == key) {
+            return Some(feature);
+        }
+        None
+    }
+
+    fn get_variable_for_id(&self, id: &str) -> Option<&Variable> {
+        if let Some(variable) = self.variable_id_map.get(id) {
+            return Some(variable);
+        }
+        None
+    }
+
+    fn get_feature_for_variable_id(&self, variable_id: &str) -> Option<&ConfigFeature> {
+        if let Some(feature) = self.variable_id_to_feature_map.get(variable_id) {
+            return Some(feature);
+        }
+        None
+    }
+
+    fn compile(&mut self) {
+        // Build mapping of variable IDs to features
+        for feature in &self.features {
+            for variation in &feature.variations {
+                for variable in &variation.variables {
+                    if !self.variable_id_to_feature_map.contains_key(&variable._var) {
+                        self.variable_id_to_feature_map.insert(variable._var.clone(), feature.clone());
+                    }
+                }
+            }
+        }
+
+        // Build mappings for variables by key and ID
+        for variable in &self.variables {
+            self.variable_key_map.insert(variable.key.clone(), variable.clone());
+            self.variable_id_map.insert(variable._id.clone(), variable.clone());
+        }
+
+        // Sort the feature distributions by "_variation" attribute in descending alphabetical order
+        for feature in &mut self.features {
+            for target in &mut feature.configuration.targets {
+                target.distribution.sort_by(|a, b| b.variation.cmp(&a.variation));
+            }
+        }
+    }
 }

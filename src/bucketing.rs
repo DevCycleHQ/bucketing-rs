@@ -1,4 +1,5 @@
 use crate::config::*;
+use crate::configmanager;
 use crate::constants;
 use crate::errors;
 use crate::errors::DevCycleError;
@@ -7,7 +8,6 @@ use crate::murmurhash::murmurhash;
 use crate::target::*;
 use crate::target::{Rollout, RolloutStage};
 use crate::user::{BucketedUserConfig, PopulatedUser, User};
-use crate::configmanager;
 use std::collections::HashMap;
 use std::ops::Sub;
 use std::ptr::{null, null_mut};
@@ -99,9 +99,9 @@ pub(crate) fn get_current_rollout_percentage(
             .sub((*current_stage).date)
             .num_milliseconds()
             / (*next_stage)
-                .date
-                .sub((*current_stage).date)
-                .num_milliseconds()) as f64;
+            .date
+            .sub((*current_stage).date)
+            .num_milliseconds()) as f64;
         if current_date_percentage == 0.0 {
             return 0.0;
         }
@@ -114,7 +114,7 @@ pub(crate) unsafe fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_ha
     match rollout {
         Some(r) => {
             let current_rollout_percentage = get_current_rollout_percentage(r, chrono::Utc::now());
-            return current_rollout_percentage != 0.0 && bounded_hash < current_rollout_percentage;
+            current_rollout_percentage != 0.0 && bounded_hash <= current_rollout_percentage;
         }
         None => true, // No rollout means user passes by default
     }
@@ -196,53 +196,55 @@ pub fn bucket_user_for_variation(
     }
     Err(errors::missing_variation())
 }
-    pub async unsafe fn generate_bucketed_config(
-        sdk_key: &str,
-        user: PopulatedUser,
-        client_custom_data: HashMap<String, serde_json::Value>,
-    ) -> Result<BucketedUserConfig, DevCycleError> {
-        let config_result = {
-            let configs = configmanager::CONFIGS.read().unwrap();
-            configs.get(sdk_key).map(|config| {
-                // Instead of cloning the entire config, extract what we need
-                (config.project._id.clone(),
-                 config.environment._id.clone(),
-                 config.variables.len())
-            })
-        };
-
-        let (project_id, environment_id, var_count) = config_result.ok_or(errors::missing_variable())?;
-
-        // For now, return a minimal bucketed config to get compilation working
-        // This would need to be properly implemented based on the actual requirements
-        let mut variable_map: HashMap<String, ReadOnlyVariable> = HashMap::new();
-        let mut feature_key_map: HashMap<String, Feature> = HashMap::new();
-        let mut feature_variation_map: HashMap<String, String> = HashMap::new();
-        let mut variable_variation_map: HashMap<String, FeatureVariation> = HashMap::new();
-
-        // Create a User from PopulatedUser data
-        let user_instance = User {
-            user_id: user.user_id.clone(),
-            email: user.email.clone(),
-            name: user.name.clone(),
-            language: user.language.clone(),
-            country: user.country.clone(),
-            app_version: user.app_version.clone(),
-            app_build: user.app_build.clone(),
-            custom_data: user.custom_data.clone(),
-            private_custom_data: user.private_custom_data.clone(),
-            device_model: user.device_model.clone(),
-            last_seen_date: user.last_seen_date.clone(),
-        };
-
-        Ok(BucketedUserConfig {
-            user: user_instance, // Use the converted User instance
-            project: project_id,
-            environment: environment_id,
-            features: feature_key_map,
-            known_variable_keys: Vec::new(),
-            feature_variation_map,
-            variable_variation_map,
-            variables: variable_map,
+pub async unsafe fn generate_bucketed_config(
+    sdk_key: &str,
+    user: PopulatedUser,
+    client_custom_data: HashMap<String, serde_json::Value>,
+) -> Result<BucketedUserConfig, DevCycleError> {
+    let config_result = {
+        let configs = configmanager::CONFIGS.read().unwrap();
+        configs.get(sdk_key).map(|config| {
+            // Instead of cloning the entire config, extract what we need
+            (
+                config.project._id.clone(),
+                config.environment._id.clone(),
+                config.variables.len(),
+            )
         })
-    }
+    };
+
+    let (project_id, environment_id, var_count) = config_result.ok_or(errors::missing_variable())?;
+
+    // For now, return a minimal bucketed config to get compilation working
+    // This would need to be properly implemented based on the actual requirements
+    let variable_map: HashMap<String, ReadOnlyVariable> = HashMap::new();
+    let feature_key_map: HashMap<String, Feature> = HashMap::new();
+    let feature_variation_map: HashMap<String, String> = HashMap::new();
+    let variable_variation_map: HashMap<String, FeatureVariation> = HashMap::new();
+
+    // Create a User from PopulatedUser data
+    let user_instance = User {
+        user_id: user.user_id.clone(),
+        email: user.email.clone(),
+        name: user.name.clone(),
+        language: user.language.clone(),
+        country: user.country.clone(),
+        app_version: user.app_version.clone(),
+        app_build: user.app_build.clone(),
+        custom_data: user.custom_data.clone(),
+        private_custom_data: user.private_custom_data.clone(),
+        device_model: user.device_model.clone(),
+        last_seen_date: user.last_seen_date.clone(),
+    };
+
+    Ok(BucketedUserConfig {
+        user: user_instance, // Use the converted User instance
+        project: project_id,
+        environment: environment_id,
+        features: feature_key_map,
+        known_variable_keys: Vec::new(),
+        feature_variation_map,
+        variable_variation_map,
+        variables: variable_map,
+    })
+}

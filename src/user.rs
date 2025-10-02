@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::config::{Environment, Project};
 use crate::feature::{Feature, FeatureVariation, ReadOnlyVariable};
 use crate::platform_data::PlatformData;
 use chrono::{DateTime, Utc};
