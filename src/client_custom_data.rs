@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
+use once_cell::sync::Lazy;
 use serde_json::Value;
+use crate::config::ConfigBody;
 
 // Global client custom data storage
-static CLIENT_CUSTOM_DATA: RwLock<HashMap<String, HashMap<String, Value>>> = RwLock::new(HashMap::new());
-
+pub(crate) static CLIENT_CUSTOM_DATA: Lazy<RwLock<HashMap<String, HashMap<String, Value>>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
 pub fn get_client_custom_data(sdk_key: &str) -> Option<HashMap<String, Value>> {
     let data = CLIENT_CUSTOM_DATA.read().unwrap();
     data.get(sdk_key).cloned()

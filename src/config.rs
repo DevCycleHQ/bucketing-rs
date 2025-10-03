@@ -121,14 +121,7 @@ pub(crate) struct ConfigBody<'a> {
     last_modified: DateTime<chrono::Utc>,
 }
 
-trait ConfigOperators {
-    fn get_variable_for_key(&self, key: &str) -> Option<&Variable>;
-    fn get_feature_for_key(&self, key: &str) -> Option<&ConfigFeature>;
-    fn get_variable_for_id(&self, id: &str) -> Option<&Variable>;
-    fn get_feature_for_variable_id(&self, variable_id: &str) -> Option<&ConfigFeature>;
-    fn compile(&mut self);
-}
-impl ConfigOperators for ConfigBody<'_> {
+impl<'a> ConfigBody<'a> {
     fn get_variable_for_key(&self, key: &str) -> Option<&Variable> {
         if let Some(variable) = self.variable_key_map.get(key) {
             return Some(variable);
