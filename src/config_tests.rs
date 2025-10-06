@@ -142,7 +142,7 @@ mod tests {
                         primary: "#FFFFFF".to_string(),
                         secondary: "#000000".to_string(),
                     },
-                },
+                }.into(),
                 disable_passthrough_rollouts: true,
                 obfuscation: None,
             },

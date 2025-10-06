@@ -84,5 +84,5 @@ pub struct Feature {
     pub variation: String,
     pub variationkey: String,
     pub variationname: String,
-    pub evalreason: String,
+    pub evalreason: Option<String>,
 }

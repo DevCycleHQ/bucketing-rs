@@ -7,11 +7,17 @@ mod tests {
     use crate::user::*;
     use chrono::Utc;
     use serde_json;
+    use serde_json::Value;
     use std::collections::HashMap;
 
     fn load_test_config() -> FullConfig {
         let config_json = include_str!("../tests/resources/test_config.json");
         serde_json::from_str(config_json).expect("Failed to parse test config")
+    }
+
+    fn load_test_config_v2() -> FullConfig {
+        let config_json = include_str!("../tests/resources/fixture_test_v2_config.json");
+        serde_json::from_str(config_json).expect("Failed to parse test config v2")
     }
 
     fn create_config_body_from_full_config(full_config: FullConfig) -> ConfigBody<'static> {
@@ -50,6 +56,9 @@ mod tests {
             variable_id_map,
             variable_key_map,
             variable_id_to_feature_map,
+            etag: "test-etag".to_string(),
+            ray_id: "test-ray-id".to_string(),
+            last_modified: Utc::now(),
         }
     }
 
@@ -80,13 +89,52 @@ mod tests {
         }
     }
 
+    fn create_test_user_v2(user_id: &str) -> PopulatedUser {
+        let platform_data = PlatformData {
+            sdk_type: "server".to_string(),
+            sdk_version: "2.0.0".to_string(),
+            platform_version: "1.1.2".to_string(),
+            device_model: "test-device-v2".to_string(),
+            platform: "linux".to_string(),
+            hostname: "localhost".to_string(),
+        };
+        let mut custom_data : HashMap<String, Value> = HashMap::new();
+        custom_data.insert("favouriteNull".to_string(), Value::Null);
+
+        PopulatedUser {
+            user_id: user_id.to_string(),
+            email: format!("{}@test.com", user_id),
+            name: format!("Test User {}", user_id),
+            language: "en".to_string(),
+            country: "US".to_string(),
+            app_version: "1.0.0".to_string(),
+            app_build: "100".to_string(),
+            custom_data,
+            private_custom_data: HashMap::new(),
+            device_model: "test-device".to_string(),
+            last_seen_date: Utc::now(),
+            platform_data,
+            created_date: Utc::now(),
+        }
+    }
+
+
     fn setup_test_config(sdk_key: &str) {
         let full_config = load_test_config();
         let config_body = create_config_body_from_full_config(full_config);
 
         // Store the config in the global CONFIGS map
         let mut configs = configmanager::CONFIGS.write().unwrap();
-        configs.insert(sdk_key.to_string(), config_body);
+        configs.insert(sdk_key.to_string(), config_body.into());
+    }
+
+    fn setup_test_config_v2(sdk_key: &str) {
+        let full_config = load_test_config();
+        let config_body = create_config_body_from_full_config(full_config);
+
+        // Store the config in the global CONFIGS map
+        let mut configs = configmanager::CONFIGS.write().unwrap();
+        configs.insert(sdk_key.to_string(), config_body.into());
     }
 
     #[tokio::test]
@@ -278,7 +326,7 @@ mod tests {
 
         // Store the config in the global CONFIGS map
         let mut configs = configmanager::CONFIGS.write().unwrap();
-        configs.insert(sdk_key.to_string(), config_body);
+        configs.insert(sdk_key.to_string(), config_body.into());
     }
 
     #[tokio::test]
@@ -447,5 +495,20 @@ mod tests {
         assert_eq!(test_config.project, prod_config.project);
         assert_eq!(test_config.environment, prod_config.environment);
         assert_eq!(test_config.user.user_id, prod_config.user.user_id);
+    }
+
+    #[tokio::test]
+    async fn test_generate_bucketed_config_v2_user() {
+        let user = create_test_user_v2("client_test_3");
+        load_test_config_v2();
+        let bucketing_result = unsafe {
+            bucketing::generate_bucketed_config("test-sdk-key-1", user.clone(), HashMap::new()).await
+        };
+        assert!(bucketing_result.is_ok(), "Failed to generate bucketed config for v2 user: {:?}", bucketing_result.err());
+        let bucketed_config = bucketing_result.unwrap();
+
+        let json = serde_json::to_string_pretty(&bucketed_config);
+        assert!(json.is_ok(), "Failed to serialize bucketed config to JSON: {:?}", json.err());
+        println!("Bucketed Config JSON:\n{}", json.unwrap());
     }
 }

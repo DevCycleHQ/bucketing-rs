@@ -1,22 +1,19 @@
-use crate::config::ConfigBody;
-use once_cell::sync::Lazy;
+use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
-use std::sync::RwLock;
+use once_cell::sync::Lazy;
+use crate::config::ConfigBody;
 
-pub(crate) static CONFIGS: Lazy<RwLock<HashMap<String, ConfigBody<'static>>>> =
+pub(crate) static CONFIGS: Lazy<RwLock<HashMap<String, Arc<ConfigBody<'static>>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
-pub(crate) fn get_config(sdk_key: &str) -> Option<&ConfigBody<'static>> {
+pub(crate) fn get_config(sdk_key: &str) -> Option<Arc<ConfigBody<'static>>> {
     let configs = CONFIGS.read().unwrap();
-    if let Some(config) = configs.get(sdk_key) {
-        return Some(config.clone());
-    }
-    None
+    configs.get(sdk_key).cloned() // Clones the Arc, not the ConfigBody
 }
 
 pub(crate) fn set_config(sdk_key: &str, config: ConfigBody<'static>) {
     let mut configs = CONFIGS.write().unwrap();
-    configs.insert(sdk_key.to_string(), config);
+    configs.insert(sdk_key.to_string(), Arc::new(config));
 }
 
 pub(crate) fn has_config(sdk_key: &str) -> bool {

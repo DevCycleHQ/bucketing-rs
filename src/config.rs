@@ -116,34 +116,34 @@ pub(crate) struct ConfigBody<'a> {
     pub(crate) variable_id_map: HashMap<String, Variable>,
     pub(crate) variable_key_map: HashMap<String, Variable>,
     pub(crate) variable_id_to_feature_map: HashMap<String, ConfigFeature>,
-    etag: String,
-    ray_id: String,
-    last_modified: DateTime<chrono::Utc>,
+    pub(crate) etag: String,
+    pub(crate) ray_id: String,
+    pub(crate) last_modified: DateTime<chrono::Utc>,
 }
 
 impl<'a> ConfigBody<'a> {
-    fn get_variable_for_key(&self, key: &str) -> Option<&Variable> {
+    pub(crate) fn get_variable_for_key(&self, key: &str) -> Option<&Variable> {
         if let Some(variable) = self.variable_key_map.get(key) {
             return Some(variable);
         }
         None
     }
 
-    fn get_feature_for_key(&self, key: &str) -> Option<&ConfigFeature> {
+    pub(crate) fn get_feature_for_key(&self, key: &str) -> Option<&ConfigFeature> {
         if let Some(feature) = self.features.iter().find(|f| f.key == key) {
             return Some(feature);
         }
         None
     }
 
-    fn get_variable_for_id(&self, id: &str) -> Option<&Variable> {
+    pub(crate) fn get_variable_for_id(&self, id: &str) -> Option<&Variable> {
         if let Some(variable) = self.variable_id_map.get(id) {
             return Some(variable);
         }
         None
     }
 
-    fn get_feature_for_variable_id(&self, variable_id: &str) -> Option<&ConfigFeature> {
+    pub(crate) fn get_feature_for_variable_id(&self, variable_id: &str) -> Option<&ConfigFeature> {
         if let Some(feature) = self.variable_id_to_feature_map.get(variable_id) {
             return Some(feature);
         }

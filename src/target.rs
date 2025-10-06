@@ -22,14 +22,14 @@ impl Target {
     pub(crate) fn decide_target_variation(
         self,
         bounded_hash: f64,
-    ) -> Result<String, DevCycleError> {
+    ) -> Result<(String, bool), DevCycleError> {
         let mut distribution_index: f64 = 0.0;
         let mut previous_distribution_index: f64 = 0.0;
-
+        let is_randomized = self.distribution.len() > 1;
         for d in self.distribution {
             distribution_index += d.percentage;
-            if bounded_hash >= previous_distribution_index && bounded_hash < distribution_index {
-                return Ok(d.variation);
+            if bounded_hash >= previous_distribution_index && (bounded_hash < distribution_index || (distribution_index == 1.0 && bounded_hash == 1.0)) {
+                return Ok((d.variation, is_randomized));
             }
             previous_distribution_index = distribution_index;
         }
@@ -69,7 +69,7 @@ pub(crate) struct TargetDistribution {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct TargetAndHashes {
-    pub(crate) target_id: String,
+    pub(crate) target: Target,
     pub(crate) bounded_hash: murmurhash::murmurhash::BoundedHash,
 }
 

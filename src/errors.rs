@@ -62,3 +62,7 @@ pub fn missing_variable() -> DevCycleError {
 pub fn missing_variation() -> DevCycleError {
     DevCycleError::new("Missing variation")
 }
+
+pub fn missing_config() -> DevCycleError {
+    DevCycleError::new("Missing config")
+}

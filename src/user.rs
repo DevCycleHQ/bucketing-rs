@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use crate::feature::{Feature, FeatureVariation, ReadOnlyVariable};
 use crate::platform_data::PlatformData;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct User {
     // Unique id to identify the user
     pub user_id: String,
@@ -77,7 +79,7 @@ pub struct UserFeatureData<'a> {
     feature_vars: &'a HashMap<String, String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PopulatedUser {
     pub user_id: String,
     // User's email used to identify the user on the dashboard / target audiences
@@ -130,6 +132,7 @@ impl PopulatedUser {
     }
 }
 
+#[derive(Serialize)]
 pub struct BucketedUserConfig {
     pub(crate) project: String, // Changed from Project to String to match the data we have
     pub(crate) environment: String, // Changed from Environment to String to match the data we have
@@ -137,6 +140,5 @@ pub struct BucketedUserConfig {
     pub(crate) feature_variation_map: HashMap<String, String>,
     pub(crate) variable_variation_map: HashMap<String, FeatureVariation>,
     pub(crate) variables: HashMap<String, ReadOnlyVariable>,
-    pub(crate) known_variable_keys: Vec<String>, // Fixed type from Vec<f64> to Vec<String>
-    pub(crate) user: User,
+    pub(crate) user: PopulatedUser,
 }

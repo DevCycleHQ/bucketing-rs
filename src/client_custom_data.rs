@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-use std::sync::RwLock;
 use once_cell::sync::Lazy;
 use serde_json::Value;
-use crate::config::ConfigBody;
+use std::collections::HashMap;
+use std::sync::RwLock;
 
 // Global client custom data storage
 pub(crate) static CLIENT_CUSTOM_DATA: Lazy<RwLock<HashMap<String, HashMap<String, Value>>>> =

@@ -1,16 +1,18 @@
+use std::arch::naked_asm;
 use crate::config::*;
 use crate::configmanager;
 use crate::constants;
 use crate::errors;
-use crate::errors::DevCycleError;
+use crate::errors::{missing_config, missing_variation, DevCycleError};
 use crate::feature::*;
 use crate::murmurhash::murmurhash;
 use crate::target::*;
 use crate::target::{Rollout, RolloutStage};
 use crate::user::{BucketedUserConfig, PopulatedUser, User};
 use std::collections::HashMap;
-use std::ops::Sub;
-use std::ptr::{null, null_mut};
+use std::ops::{ControlFlow, Deref, Sub};
+use std::ptr::{hash, null, null_mut};
+use std::sync::Arc;
 
 pub fn determine_user_bucketing_value_for_target(
     target_bucketing_key: String,
@@ -33,7 +35,7 @@ pub fn determine_user_bucketing_value_for_target(
             None => String::from(constants::DEFAULT_BUCKETING_VALUE),
         };
     }
-    return String::from(constants::DEFAULT_BUCKETING_VALUE);
+    String::from(constants::DEFAULT_BUCKETING_VALUE)
 }
 
 pub(crate) fn get_current_rollout_percentage(
@@ -114,22 +116,23 @@ pub(crate) unsafe fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_ha
     match rollout {
         Some(r) => {
             let current_rollout_percentage = get_current_rollout_percentage(r, chrono::Utc::now());
-            current_rollout_percentage != 0.0 && bounded_hash <= current_rollout_percentage;
+            return (current_rollout_percentage != 0.0 && bounded_hash <= current_rollout_percentage);
         }
         None => true, // No rollout means user passes by default
     }
 }
 
 pub(crate) unsafe fn evaluate_segmentation_for_feature(
-    config: *const ConfigBody,
-    feature: *const ConfigFeature,
+    config: &ConfigBody,
+    feature: &ConfigFeature,
     mut user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
-) -> *const Target {
+) -> Result<Target, DevCycleError> {
     let merged_custom_data = user.combined_custom_data();
+    let mut ret : Result<Target, DevCycleError> = Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_TARGETS);
     // Use slice iteration to avoid moving out of the vector
-    for target in &(*feature).configuration.targets {
-        let passthrough_enabled = !(*config).project.settings.disable_passthrough_rollouts;
+    feature.configuration.targets.iter().try_for_each(| target | {
+        let passthrough_enabled = config.project.settings.disable_passthrough_rollouts;
         let mut does_user_passthrough = true;
         if passthrough_enabled {
             let bucketing_value = determine_user_bucketing_value_for_target(
@@ -146,105 +149,141 @@ pub(crate) unsafe fn evaluate_segmentation_for_feature(
         if does_user_passthrough
             && operator.evaluate((*config).audiences, &mut user, &client_custom_data.clone())
         {
-            return target;
+            ret = Ok(target.clone());
+            None // Break the loop
+        } else {
+            Some(())
         }
-    }
-    null()
+    });
+    return ret;
 }
 
 pub(crate) unsafe fn does_user_qualify_for_feature(
-    config: *const ConfigBody,
-    feature: *const ConfigFeature,
+    config: &Arc<ConfigBody>,
+    feature: &ConfigFeature,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<TargetAndHashes, DevCycleError> {
-    let target =
+    let target_pair =
         evaluate_segmentation_for_feature(config, feature, user.clone(), client_custom_data);
-    if target == null() {
+    if !target_pair.is_ok() {
         return Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_TARGETS);
     }
+    let target = target_pair.ok().unwrap();
 
     let merged_custom_data = user.combined_custom_data();
     let bucketing_value = determine_user_bucketing_value_for_target(
-        (*target).bucketingkey.clone(),
+        target.bucketingkey.clone(),
         user.user_id.clone(),
         merged_custom_data.clone(),
     );
 
     let bounded_hashes =
-        murmurhash::generate_bounded_hashes(bucketing_value, (*target)._id.clone());
+        murmurhash::generate_bounded_hashes(bucketing_value, target._id.clone());
     let rollout_hash = bounded_hashes.rollout_hash;
     let passthrough_enabled = !(*config).project.settings.disable_passthrough_rollouts;
 
-    if !passthrough_enabled && !does_user_pass_rollout((*target).rollout.clone(), rollout_hash) {
+    if !passthrough_enabled && !does_user_pass_rollout(target.rollout.clone(), rollout_hash) {
         return Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_ROLLOUTS);
     }
     Ok(TargetAndHashes {
-        target_id: (*target)._id.clone(),
+        target,
         bounded_hash: bounded_hashes,
     })
 }
-pub fn bucket_user_for_variation(
-    feature: ConfigFeature,
+pub(crate) fn bucket_user_for_variation(
+    feature: &ConfigFeature,
     hashes: TargetAndHashes,
 ) -> Result<Variation, DevCycleError> {
-    // Since we no longer have the target with distribution info,
-    // we'll need a different approach here. For now, return the first variation
-    // This would need to be properly implemented based on requirements
+
+    let variation = hashes.target.decide_target_variation(hashes.bounded_hash.bucketing_hash);
+    if !variation.is_ok() {
+        return Err(errors::failed_to_decide_variation());
+    }
     if feature.variations.len() > 0 {
         return Ok(feature.variations[0].clone());
     }
-    Err(errors::missing_variation())
+    Err(missing_variation())
 }
 pub async unsafe fn generate_bucketed_config(
     sdk_key: &str,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<BucketedUserConfig, DevCycleError> {
-    let config_result = {
-        let configs = configmanager::CONFIGS.read().unwrap();
-        configs.get(sdk_key).map(|config| {
-            // Instead of cloning the entire config, extract what we need
-            (
-                config.project._id.clone(),
-                config.environment._id.clone(),
-                config.variables.len(),
-            )
-        })
-    };
+    let config_result =
+        configmanager::CONFIGS.read().unwrap().get(sdk_key).cloned().ok_or(missing_config())?;
 
-    let (project_id, environment_id, var_count) = config_result.ok_or(errors::missing_variable())?;
+    let project_id = config_result.project._id.clone();
+    let environment_id = config_result.environment._id.clone();
+    let mut variables: HashMap<String, ReadOnlyVariable> = HashMap::new();
+    let mut feature_key_map: HashMap<String, Feature> = HashMap::new();
+    let mut feature_variation_map: HashMap<String, String> = HashMap::new();
+    let mut variable_variation_map: HashMap<String, FeatureVariation> = HashMap::new();
 
-    // For now, return a minimal bucketed config to get compilation working
-    // This would need to be properly implemented based on the actual requirements
-    let variable_map: HashMap<String, ReadOnlyVariable> = HashMap::new();
-    let feature_key_map: HashMap<String, Feature> = HashMap::new();
-    let feature_variation_map: HashMap<String, String> = HashMap::new();
-    let variable_variation_map: HashMap<String, FeatureVariation> = HashMap::new();
+    for feature in &config_result.features {
+        let target_hash = does_user_qualify_for_feature(
+            &config_result,
+            feature,
+            user.clone(),
+            client_custom_data.clone(),
+        );
+        if !target_hash.is_ok() {
+            continue;
+        }
+        let variation = bucket_user_for_variation(feature, target_hash.ok().unwrap());
+        if !variation.is_ok() {
+            return Err(variation.err().unwrap());
+        }
+        let variation_instance = variation.ok().unwrap();
+        feature_key_map.insert(
+            feature.key.clone(),
+            Feature {
+                _id: feature._id.clone(),
+                _type: feature._type.clone(),
+                variation: variation_instance._id.clone(),
+                variationkey: variation_instance.key.clone(),
+                variationname: variation_instance.name.clone(),
+                key: feature.key.clone(),
+                evalreason: None,
+            },
+        );
+        feature_variation_map.insert(feature.key.clone(), variation_instance._id.clone());
 
-    // Create a User from PopulatedUser data
-    let user_instance = User {
-        user_id: user.user_id.clone(),
-        email: user.email.clone(),
-        name: user.name.clone(),
-        language: user.language.clone(),
-        country: user.country.clone(),
-        app_version: user.app_version.clone(),
-        app_build: user.app_build.clone(),
-        custom_data: user.custom_data.clone(),
-        private_custom_data: user.private_custom_data.clone(),
-        device_model: user.device_model.clone(),
-        last_seen_date: user.last_seen_date.clone(),
-    };
+        for var in &variation_instance.variables {
+            let variable = config_result.get_variable_for_id(&var._var);
+            if variable.is_none() {
+                continue;
+            }
+            let variable_instance = variable.unwrap();
+            variables.insert(
+                variable_instance.key.clone(),
+                ReadOnlyVariable {
+                    id: variable_instance._id.clone(),
+                    key: variable_instance.key.clone(),
+                    _type: variable_instance._type.clone(),
+                    value: var.value.clone(),
+                },
+            );
+            variable_variation_map.insert(
+                variable_instance.key.clone(),
+                FeatureVariation {
+                    feature: feature.key.clone(),
+                    variation: variation_instance.key.clone(),
+                },
+            );
+        }
+
+
+    }
+
 
     Ok(BucketedUserConfig {
-        user: user_instance, // Use the converted User instance
+        user,
         project: project_id,
         environment: environment_id,
         features: feature_key_map,
-        known_variable_keys: Vec::new(),
         feature_variation_map,
         variable_variation_map,
-        variables: variable_map,
+        variables,
     })
 }
