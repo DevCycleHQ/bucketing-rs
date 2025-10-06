@@ -28,7 +28,7 @@ pub(crate) struct ProjectSettings {
     pub obfuscation: Option<ObfuscationSettings>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 pub(crate) struct EdgeDBSettings {
     pub enabled: bool,
 }
