@@ -4,7 +4,7 @@ pub(crate) mod murmurhash {
     use serde::{Deserialize, Serialize};
 
     pub(crate) fn generate_bounded_hash(input: String, seed: u32) -> f64 {
-        let mut cursor = std::io::Cursor::new(input.as_bytes());
+        let mut cursor = std::io::Cursor::new(input);
         let hash = murmur3_32(&mut cursor, seed).unwrap();
         return f64::from(hash) / f64::from(constants::MAX_HASH_VALUE);
     }

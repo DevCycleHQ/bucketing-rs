@@ -1,10 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 use crate::errors::{DevCycleError, FAILED_TO_DECIDE_VARIATION};
 use crate::filters::{AudienceOperator, NoIdAudience};
-use crate::murmurhash;
+use crate::murmurhash::murmurhash;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Target {
@@ -23,15 +22,18 @@ impl Target {
         self,
         bounded_hash: f64,
     ) -> Result<(String, bool), DevCycleError> {
+
         let mut distribution_index: f64 = 0.0;
-        let mut previous_distribution_index: f64 = 0.0;
+        let previous_distribution_index: f64 = 0.0;
         let is_randomized = self.distribution.len() > 1;
         for d in self.distribution {
             distribution_index += d.percentage;
-            if bounded_hash >= previous_distribution_index && (bounded_hash < distribution_index || (distribution_index == 1.0 && bounded_hash == 1.0)) {
+            if bounded_hash >= previous_distribution_index
+                && (bounded_hash < distribution_index
+                    || (distribution_index == 1.0 && bounded_hash == 1.0))
+            {
                 return Ok((d.variation, is_randomized));
             }
-            previous_distribution_index = distribution_index;
         }
         return Err(FAILED_TO_DECIDE_VARIATION);
     }
@@ -65,7 +67,7 @@ pub(crate) struct RolloutStage {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub(crate) struct TargetDistribution {
-    #[serde(rename = "_variation")]
+    #[serde(rename = "_variation", alias = "_variation")]
     pub(crate) variation: String,
     pub(crate) percentage: f64,
 }
@@ -73,7 +75,7 @@ pub(crate) struct TargetDistribution {
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct TargetAndHashes {
     pub(crate) target: Target,
-    pub(crate) bounded_hash: murmurhash::murmurhash::BoundedHash,
+    pub(crate) bounded_hash: murmurhash::BoundedHash,
 }
 
 fn default_bucketing_key() -> String {

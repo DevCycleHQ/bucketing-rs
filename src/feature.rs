@@ -52,7 +52,7 @@ pub struct ConfigFeature {
     #[serde(rename = "type")]
     pub _type: String,
     pub key: String,
-    pub variations: Vec<Variation>,
+    pub(crate) variations: Vec<Variation>,
     pub configuration: FeatureConfiguration,
     #[serde(default)]
     pub settings: String,
@@ -69,7 +69,7 @@ pub struct FeatureConfiguration {
     pub winning_variation: Option<FeatureVariation>,
     #[serde(default)]
     pub forced_users: HashMap<String, String>,
-    pub targets: Vec<Target>,
+    pub(crate) targets: Vec<Target>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

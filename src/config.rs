@@ -150,7 +150,7 @@ impl<'a> ConfigBody<'a> {
         None
     }
 
-    fn compile(&mut self) {
+    pub(crate) fn compile(&mut self) {
         // Build mapping of variable IDs to features
         for feature in &self.features {
             for variation in &feature.variations {

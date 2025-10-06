@@ -100,9 +100,9 @@ pub(crate) fn get_current_rollout_percentage(
             .sub((*current_stage).date)
             .num_milliseconds()
             / (*next_stage)
-            .date
-            .sub((*current_stage).date)
-            .num_milliseconds()) as f64;
+                .date
+                .sub((*current_stage).date)
+                .num_milliseconds()) as f64;
         if current_date_percentage == 0.0 {
             return 0.0;
         }
@@ -126,14 +126,16 @@ pub(crate) unsafe fn evaluate_segmentation_for_feature(
     feature: &ConfigFeature,
     mut user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
-) -> Result<Target, DevCycleError> {
+) -> Result<(Target, bool), DevCycleError> {
     let merged_custom_data = user.combined_custom_data();
-    let mut ret : Result<Target, DevCycleError> = Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_TARGETS);
-    // Use slice iteration to avoid moving out of the vector
-    feature.configuration.targets.iter().try_for_each(| target | {
+    let mut ret: Result<(Target, bool), DevCycleError> =
+        Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_TARGETS);
+    for target in feature.configuration.targets.clone() {
         let passthrough_enabled = config.project.settings.disable_passthrough_rollouts;
         let mut does_user_passthrough = true;
-        if passthrough_enabled {
+        let mut rollout_criteria_met = true;
+        let mut is_rollout = false;
+        if target.rollout.is_some() && passthrough_enabled {
             let bucketing_value = determine_user_bucketing_value_for_target(
                 target.bucketingkey.clone(),
                 user.user_id.clone(),
@@ -143,18 +145,24 @@ pub(crate) unsafe fn evaluate_segmentation_for_feature(
                 murmurhash::generate_bounded_hashes(bucketing_value, target._id.clone());
             does_user_passthrough =
                 does_user_pass_rollout(target.rollout.clone(), bounded_hash.rollout_hash);
+            rollout_criteria_met =
+                is_user_in_rollout(target.rollout.clone().unwrap(), bounded_hash.rollout_hash);
+            is_rollout = rollout_criteria_met;
         }
         let operator = &target.audience.filters;
-        if does_user_passthrough
+        if rollout_criteria_met
             && operator.evaluate((*config).audiences, &mut user, &client_custom_data.clone())
         {
-            ret = Ok(target.clone());
-            None // Break the loop
-        } else {
-            Some(())
+            ret = Ok((target.clone(), is_rollout.clone()));
+            return ret;
         }
-    });
+    }
     return ret;
+}
+
+pub(crate) fn is_user_in_rollout(rollout: Rollout, bounded_hash: f64) -> bool {
+    let rollout_percentage = get_current_rollout_percentage(rollout, chrono::Utc::now());
+    return rollout_percentage != 0.0 && (bounded_hash <= rollout_percentage);
 }
 
 pub(crate) unsafe fn does_user_qualify_for_feature(
@@ -168,8 +176,7 @@ pub(crate) unsafe fn does_user_qualify_for_feature(
     if !target_pair.is_ok() {
         return Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_TARGETS);
     }
-    let target = target_pair.ok().unwrap();
-
+    let (target, is_rollout) = target_pair.ok().unwrap();
     let merged_custom_data = user.combined_custom_data();
     let bucketing_value = determine_user_bucketing_value_for_target(
         target.bucketingkey.clone(),
@@ -177,8 +184,7 @@ pub(crate) unsafe fn does_user_qualify_for_feature(
         merged_custom_data.clone(),
     );
 
-    let bounded_hashes =
-        murmurhash::generate_bounded_hashes(bucketing_value, target._id.clone());
+    let bounded_hashes = murmurhash::generate_bounded_hashes(bucketing_value, target._id.clone());
     let rollout_hash = bounded_hashes.rollout_hash;
     let passthrough_enabled = !(*config).project.settings.disable_passthrough_rollouts;
 
@@ -193,14 +199,18 @@ pub(crate) unsafe fn does_user_qualify_for_feature(
 pub(crate) fn bucket_user_for_variation(
     feature: &ConfigFeature,
     hashes: TargetAndHashes,
-) -> Result<Variation, DevCycleError> {
-
-    let variation = hashes.target.decide_target_variation(hashes.bounded_hash.bucketing_hash);
-    if !variation.is_ok() {
+) -> Result<(Variation, bool), DevCycleError> {
+    let target_variation_result = hashes
+        .target
+        .decide_target_variation(hashes.bounded_hash.bucketing_hash);
+    if !target_variation_result.is_ok() {
         return Err(errors::failed_to_decide_variation());
     }
-    if feature.variations.len() > 0 {
-        return Ok(feature.variations[0].clone());
+    let (target_variation, is_random_distrib) = target_variation_result.ok().unwrap();
+    for variation in &feature.variations {
+        if variation._id == target_variation {
+            return Ok((variation.clone(), is_random_distrib));
+        }
     }
     Err(missing_variation())
 }
@@ -209,8 +219,12 @@ pub async unsafe fn generate_bucketed_config(
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<BucketedUserConfig, DevCycleError> {
-    let config_result =
-        configmanager::CONFIGS.read().unwrap().get(sdk_key).cloned().ok_or(missing_config())?;
+    let config_result = configmanager::CONFIGS
+        .read()
+        .unwrap()
+        .get(sdk_key)
+        .cloned()
+        .ok_or(missing_config())?;
 
     let project = config_result.project.clone();
     let environment = config_result.environment.clone();
@@ -229,11 +243,12 @@ pub async unsafe fn generate_bucketed_config(
         if !target_hash.is_ok() {
             continue;
         }
-        let variation = bucket_user_for_variation(feature, target_hash.ok().unwrap());
+        let target_and_hashes = target_hash?;
+        let variation = bucket_user_for_variation(feature, target_and_hashes.clone());
         if !variation.is_ok() {
             return Err(variation.err().unwrap());
         }
-        let variation_instance = variation.ok().unwrap();
+        let (variation_instance, is_random_distrib) = variation.ok().unwrap();
         features.insert(
             feature.key.clone(),
             Feature {
@@ -271,10 +286,7 @@ pub async unsafe fn generate_bucketed_config(
                 },
             );
         }
-
-
     }
-
 
     Ok(BucketedUserConfig {
         user,

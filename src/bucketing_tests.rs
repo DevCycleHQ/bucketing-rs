@@ -43,7 +43,7 @@ mod tests {
             }
         }
 
-        ConfigBody {
+        let mut config = ConfigBody {
             project: full_config.project,
             audiences: static_audiences,
             environment: full_config.environment,
@@ -59,7 +59,9 @@ mod tests {
             etag: "test-etag".to_string(),
             ray_id: "test-ray-id".to_string(),
             last_modified: Utc::now(),
-        }
+        };
+        config.compile();
+        return config;
     }
 
     fn create_test_user(user_id: &str) -> PopulatedUser {
@@ -508,8 +510,12 @@ mod tests {
         assert!(bucketing_result.is_ok(), "Failed to generate bucketed config for v2 user: {:?}", bucketing_result.err());
         let bucketed_config = bucketing_result.unwrap();
 
+        assert_eq!("614ef8aa475928459060721d",bucketed_config.features.get("header-copy").unwrap()._id);
+        assert_eq!("615382338424cb11646d9670",bucketed_config.features.get("header-copy").unwrap().variation);
+
         let json = serde_json::to_string_pretty(&bucketed_config);
         assert!(json.is_ok(), "Failed to serialize bucketed config to JSON: {:?}", json.err());
         println!("Bucketed Config JSON:\n{}", json.unwrap());
+
     }
 }
