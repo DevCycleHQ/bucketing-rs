@@ -31,14 +31,7 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "iPhone 12".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
-                sdk_type: "mobile".to_string(),
-                sdk_version: "1.0.0".to_string(),
-                platform_version: "iOS 15.0".to_string(),
-                device_model: "iPhone 12".to_string(),
-                platform: "iOS".to_string(),
-                hostname: "api.example.com".to_string(),
-            },
+            platform_data: crate::platform_data::get_platform_data(),
             created_date: Utc::now(),
         }
     }
@@ -1279,7 +1272,7 @@ mod tests {
             _type: constants::TYPE_USER.to_string(),
             sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
             comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
-            values: vec![serde_json::Value::String("iOS".to_string())],
+            values: vec![serde_json::Value::String("test".to_string())],
             filters: vec![],
             operator: None,
             _audiences: vec![],

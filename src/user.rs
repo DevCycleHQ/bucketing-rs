@@ -32,7 +32,7 @@ pub struct User {
 }
 
 impl User {
-    pub fn get_populated_user(&self, platform_data: PlatformData) -> PopulatedUser {
+    pub fn get_populated_user(&self) -> PopulatedUser {
         PopulatedUser {
             user_id: self.user_id.clone(),
             email: self.email.clone(),
@@ -45,17 +45,12 @@ impl User {
             app_build: self.app_build.clone(),
             device_model: self.device_model.clone(),
             last_seen_date: self.last_seen_date.clone(),
-            platform_data,
+            platform_data: crate::platform_data::get_platform_data(),
             created_date: Utc::now(),
         }
     }
 
-    // GetPopulatedUserWithTime returns a populated user with a specific created date
-    pub fn get_populated_user_with_time(
-        &self,
-        platform_data: PlatformData,
-        create_date: DateTime<Utc>,
-    ) -> PopulatedUser {
+    pub fn get_populated_user_with_time(&self, create_date: DateTime<Utc>) -> PopulatedUser {
         PopulatedUser {
             user_id: self.user_id.clone(),
             email: self.email.clone(),
@@ -68,7 +63,7 @@ impl User {
             app_build: self.app_build.clone(),
             device_model: self.device_model.clone(),
             last_seen_date: self.last_seen_date.clone(),
-            platform_data,
+            platform_data: crate::platform_data::get_platform_data(),
             created_date: create_date,
         }
     }
@@ -79,7 +74,7 @@ pub struct UserFeatureData<'a> {
     feature_vars: &'a HashMap<String, String>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize)]
 pub struct PopulatedUser {
     pub user_id: String,
     // User's email used to identify the user on the dashboard / target audiences
@@ -102,8 +97,8 @@ pub struct PopulatedUser {
     pub device_model: String,
     // Date the user was created, Unix epoch timestamp format
     pub last_seen_date: DateTime<Utc>,
-    // Platform data of the instance
-    pub platform_data: PlatformData,
+    // Platform data of the instance (static reference, no allocation needed)
+    pub platform_data: &'static PlatformData,
     // Date the user was created, Unix epoch timestamp format
     pub created_date: DateTime<Utc>,
 }
