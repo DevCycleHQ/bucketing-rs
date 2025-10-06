@@ -14,7 +14,7 @@ pub(crate) struct Project {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ProjectSettings {
-    #[serde(alias = "edgeDB", rename = "edgeDB")]
+    #[serde(alias = "edgeDB", rename = "edgeDB", default)]
     pub edgedb: EdgeDBSettings,
     #[serde(alias = "optIn", rename = "optIn", default)]
     pub optin: OptInSettings,
