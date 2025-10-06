@@ -10,10 +10,10 @@ mod tests {
             "key": "my-project",
             "a0_organization": "org_456",
             "settings": {
-                "edgedb": {
+                "edgeDB": {
                     "enabled": true
                 },
-                "optin": {
+                "optIn": {
                     "enabled": false,
                     "title": "Opt In Title",
                     "description": "Please opt in to our features",
@@ -23,7 +23,7 @@ mod tests {
                         "secondary": "#00FF00"
                     }
                 },
-                "disable_passthrough_rollouts": false
+                "disablePassthroughRollouts": false
             }
         });
 
@@ -237,10 +237,10 @@ mod tests {
             "key": "production-app",
             "a0_organization": "auth0_org_12345",
             "settings": {
-                "edgedb": {
+                "edgeDB": {
                     "enabled": true
                 },
-                "optin": {
+                "optIn": {
                     "enabled": true,
                     "title": "Feature Preview",
                     "description": "Enable beta features and provide feedback to help us improve",
@@ -250,7 +250,7 @@ mod tests {
                         "secondary": "#34A853"
                     }
                 },
-                "disable_passthrough_rollouts": true
+                "disablePassthroughRollouts": true
             }
         });
 
