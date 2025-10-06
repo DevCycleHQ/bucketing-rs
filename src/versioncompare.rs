@@ -73,12 +73,12 @@ impl Compare for SemverOptions {
 }
 
 fn has_valid_parts(lexicographical: bool, parts: &[String]) -> bool {
+    let regex: Regex = if lexicographical {
+        Regex::new(r"^\d+[A-Za-z]*$").unwrap()
+    } else {
+        Regex::new(r"^\d+$").unwrap()
+    };
     for part in parts {
-        let regex: Regex = if lexicographical {
-            Regex::new(r"^\d+[A-Za-z]*$").unwrap()
-        } else {
-            Regex::new(r"^\d+$").unwrap()
-        };
         if !regex.is_match(part) {
             return false;
         }
