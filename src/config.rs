@@ -14,13 +14,13 @@ pub(crate) struct Project {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ProjectSettings {
-    #[serde(alias = "edgeDB")]
+    #[serde(alias = "edgeDB", rename="edgeDB",)]
     pub edgedb: EdgeDBSettings,
-    #[serde(alias = "optIn")]
+    #[serde(alias = "optIn", rename="optIn", default)]
     pub optin: OptInSettings,
-    #[serde(alias = "disablePassthroughRollouts", default)]
+    #[serde(alias = "disablePassthroughRollouts", rename="disablePassthroughRollouts", default)]
     pub disable_passthrough_rollouts: bool,
-    #[serde(default)]
+    #[serde(skip_serializing)]
     pub obfuscation: Option<ObfuscationSettings>,
 }
 
@@ -29,14 +29,14 @@ pub(crate) struct EdgeDBSettings {
     pub enabled: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 pub(crate) struct OptInSettings {
     pub enabled: bool,
     #[serde(default)]
     pub title: String,
     #[serde(default)]
     pub description: String,
-    #[serde(default, alias = "imageURL")]
+    #[serde(default, alias = "imageURL", rename="imageURL")]
     pub image_url: String,
     #[serde(default)]
     pub colors: OptInColors,

@@ -129,7 +129,7 @@ mod tests {
     }
 
     fn setup_test_config_v2(sdk_key: &str) {
-        let full_config = load_test_config();
+        let full_config = load_test_config_v2();
         let config_body = create_config_body_from_full_config(full_config);
 
         // Store the config in the global CONFIGS map
@@ -153,8 +153,8 @@ mod tests {
 
         let bucketed_config = result.unwrap();
         assert_eq!(bucketed_config.user.user_id, "user123");
-        assert_eq!(bucketed_config.project, "6216420c2ea68943c8833c09");
-        assert_eq!(bucketed_config.environment, "6216420c2ea68943c8833c0b");
+        assert_eq!(bucketed_config.project._id, "6216420c2ea68943c8833c09");
+        assert_eq!(bucketed_config.environment._id, "6216420c2ea68943c8833c0b");
     }
 
     #[tokio::test]
@@ -205,8 +205,8 @@ mod tests {
         assert_eq!(results.len(), 5);
         for (i, config) in results.iter().enumerate() {
             assert_eq!(config.user.user_id, format!("user{}", i + 1));
-            assert_eq!(config.project, "6216420c2ea68943c8833c09");
-            assert_eq!(config.environment, "6216420c2ea68943c8833c0b");
+            assert_eq!(config.project._id, "6216420c2ea68943c8833c09");
+            assert_eq!(config.environment._id, "6216420c2ea68943c8833c0b");
         }
     }
 
@@ -345,8 +345,8 @@ mod tests {
 
         let bucketed_config = result.unwrap();
         assert_eq!(bucketed_config.user.user_id, "prod_user_123");
-        assert_eq!(bucketed_config.project, "6216420c2ea68943c8833c09");
-        assert_eq!(bucketed_config.environment, "6216420c2ea68943c8833c0b");
+        assert_eq!(bucketed_config.project._id, "6216420c2ea68943c8833c09");
+        assert_eq!(bucketed_config.environment._id, "6216420c2ea68943c8833c0b");
     }
 
     #[tokio::test]
@@ -492,8 +492,8 @@ mod tests {
         let prod_config = prod_result.unwrap();
 
         // Both should have the same project and environment IDs since they're the same config
-        assert_eq!(test_config.project, prod_config.project);
-        assert_eq!(test_config.environment, prod_config.environment);
+        assert_eq!(test_config.project._id, prod_config.project._id);
+        assert_eq!(test_config.environment._id, prod_config.environment._id);
         assert_eq!(test_config.user.user_id, prod_config.user.user_id);
     }
 
@@ -501,6 +501,7 @@ mod tests {
     async fn test_generate_bucketed_config_v2_user() {
         let user = create_test_user_v2("client_test_3");
         load_test_config_v2();
+        setup_test_config_v2("test-sdk-key-1");
         let bucketing_result = unsafe {
             bucketing::generate_bucketed_config("test-sdk-key-1", user.clone(), HashMap::new()).await
         };

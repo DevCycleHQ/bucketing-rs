@@ -5,12 +5,13 @@ use crate::target::Target;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VariationVariable {
-    pub _var: String,             // `json:"_var"`
-    pub value: serde_json::Value, // {} `json:"value"`
+    pub _var: String,
+    pub value: serde_json::Value,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ReadOnlyVariable {
+    #[serde(rename = "_id")]
     pub id: String,
     pub key: String,
     #[serde(rename = "type")]
@@ -28,8 +29,10 @@ pub(crate) struct Variation {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FeatureVariation {
-    pub feature: String,   // `json:"_feature"`
-    pub variation: String, // `json:"_variation"`
+    #[serde(rename = "_feature")]
+    pub feature: String,
+    #[serde(rename = "_variation")]
+    pub variation: String,
 }
 
 impl Variation {
@@ -81,8 +84,10 @@ pub struct Feature {
     pub key: String,
     #[serde(rename = "type")]
     pub _type: String,
+    #[serde(rename="_variation")]
     pub variation: String,
     pub variationkey: String,
     pub variationname: String,
+    #[serde(skip_serializing)]
     pub evalreason: Option<String>,
 }

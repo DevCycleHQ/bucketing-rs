@@ -1,4 +1,3 @@
-use std::arch::naked_asm;
 use crate::config::*;
 use crate::configmanager;
 use crate::constants;
@@ -8,10 +7,10 @@ use crate::feature::*;
 use crate::murmurhash::murmurhash;
 use crate::target::*;
 use crate::target::{Rollout, RolloutStage};
-use crate::user::{BucketedUserConfig, PopulatedUser, User};
+use crate::user::{BucketedUserConfig, PopulatedUser};
 use std::collections::HashMap;
-use std::ops::{ControlFlow, Deref, Sub};
-use std::ptr::{hash, null, null_mut};
+use std::ops::Sub;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 pub fn determine_user_bucketing_value_for_target(
@@ -116,7 +115,7 @@ pub(crate) unsafe fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_ha
     match rollout {
         Some(r) => {
             let current_rollout_percentage = get_current_rollout_percentage(r, chrono::Utc::now());
-            return (current_rollout_percentage != 0.0 && bounded_hash <= current_rollout_percentage);
+            return current_rollout_percentage != 0.0 && bounded_hash <= current_rollout_percentage;
         }
         None => true, // No rollout means user passes by default
     }
@@ -213,10 +212,10 @@ pub async unsafe fn generate_bucketed_config(
     let config_result =
         configmanager::CONFIGS.read().unwrap().get(sdk_key).cloned().ok_or(missing_config())?;
 
-    let project_id = config_result.project._id.clone();
-    let environment_id = config_result.environment._id.clone();
+    let project = config_result.project.clone();
+    let environment = config_result.environment.clone();
     let mut variables: HashMap<String, ReadOnlyVariable> = HashMap::new();
-    let mut feature_key_map: HashMap<String, Feature> = HashMap::new();
+    let mut features: HashMap<String, Feature> = HashMap::new();
     let mut feature_variation_map: HashMap<String, String> = HashMap::new();
     let mut variable_variation_map: HashMap<String, FeatureVariation> = HashMap::new();
 
@@ -235,7 +234,7 @@ pub async unsafe fn generate_bucketed_config(
             return Err(variation.err().unwrap());
         }
         let variation_instance = variation.ok().unwrap();
-        feature_key_map.insert(
+        features.insert(
             feature.key.clone(),
             Feature {
                 _id: feature._id.clone(),
@@ -247,7 +246,7 @@ pub async unsafe fn generate_bucketed_config(
                 evalreason: None,
             },
         );
-        feature_variation_map.insert(feature.key.clone(), variation_instance._id.clone());
+        feature_variation_map.insert(feature._id.clone(), variation_instance._id.clone());
 
         for var in &variation_instance.variables {
             let variable = config_result.get_variable_for_id(&var._var);
@@ -267,8 +266,8 @@ pub async unsafe fn generate_bucketed_config(
             variable_variation_map.insert(
                 variable_instance.key.clone(),
                 FeatureVariation {
-                    feature: feature.key.clone(),
-                    variation: variation_instance.key.clone(),
+                    feature: feature._id.clone(),
+                    variation: variation_instance._id.clone(),
                 },
             );
         }
@@ -279,9 +278,9 @@ pub async unsafe fn generate_bucketed_config(
 
     Ok(BucketedUserConfig {
         user,
-        project: project_id,
-        environment: environment_id,
-        features: feature_key_map,
+        project,
+        environment,
+        features,
         feature_variation_map,
         variable_variation_map,
         variables,

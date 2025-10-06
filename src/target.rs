@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 
 use crate::errors::{DevCycleError, FAILED_TO_DECIDE_VARIATION};
-use crate::filters::AudienceOperator;
+use crate::filters::{AudienceOperator, NoIdAudience};
 use crate::murmurhash;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Target {
     pub(crate) _id: String,
     #[serde(rename = "_audience")]
-    pub(crate) audience: Audience,
+    pub(crate) audience: NoIdAudience,
     #[serde(default)]
     pub(crate) rollout: Option<Rollout>,
     pub(crate) distribution: Vec<TargetDistribution>,
@@ -47,8 +47,11 @@ pub struct Audience {
 pub(crate) struct Rollout {
     #[serde(rename = "type")]
     pub(crate) _type: String,
+    #[serde(default)]
     pub(crate) start_percentage: f64,
+    #[serde(default)]
     pub(crate) start_date: DateTime<Utc>,
+    #[serde(default)]
     pub(crate) stages: Vec<RolloutStage>,
 }
 

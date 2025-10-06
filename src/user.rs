@@ -1,9 +1,10 @@
 use std::collections::HashMap;
-
+use std::iter::Skip;
 use crate::feature::{Feature, FeatureVariation, ReadOnlyVariable};
 use crate::platform_data::PlatformData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use crate::config::{Environment, Project};
 
 #[derive(Serialize, Deserialize)]
 pub struct User {
@@ -134,11 +135,14 @@ impl PopulatedUser {
 
 #[derive(Serialize)]
 pub struct BucketedUserConfig {
-    pub(crate) project: String, // Changed from Project to String to match the data we have
-    pub(crate) environment: String, // Changed from Environment to String to match the data we have
+    pub(crate) project: Project,
+    pub(crate) environment: Environment,
     pub(crate) features: HashMap<String, Feature>,
+    #[serde(rename = "featureVariationMap")]
     pub(crate) feature_variation_map: HashMap<String, String>,
+    #[serde(rename = "variableVariationMap")]
     pub(crate) variable_variation_map: HashMap<String, FeatureVariation>,
     pub(crate) variables: HashMap<String, ReadOnlyVariable>,
+    #[serde(skip_serializing)]
     pub(crate) user: PopulatedUser,
 }

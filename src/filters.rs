@@ -32,7 +32,7 @@ pub enum FilterSubType {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Filter {
-    #[serde(rename = "type")]
+    #[serde(rename = "type", default)]
     pub _type: String,
     #[serde(default)]
     pub sub_type: Option<String>,
@@ -342,7 +342,7 @@ impl FilterOrOperator for AudienceOperator {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NoIdAudience {
     pub filters: AudienceOperator,
 }
