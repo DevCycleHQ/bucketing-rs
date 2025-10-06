@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use std::iter::Skip;
+use crate::config::{Environment, Project};
 use crate::feature::{Feature, FeatureVariation, ReadOnlyVariable};
 use crate::platform_data::PlatformData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::config::{Environment, Project};
+use std::collections::HashMap;
+use std::iter::Skip;
 
 #[derive(Serialize, Deserialize)]
 pub struct User {

@@ -84,7 +84,7 @@ pub struct Feature {
     pub key: String,
     #[serde(rename = "type")]
     pub _type: String,
-    #[serde(rename="_variation")]
+    #[serde(rename = "_variation")]
     pub variation: String,
     pub variationkey: String,
     pub variationname: String,

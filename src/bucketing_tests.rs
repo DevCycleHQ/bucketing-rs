@@ -22,7 +22,8 @@ mod tests {
 
     fn create_config_body_from_full_config(full_config: FullConfig) -> ConfigBody<'static> {
         // Create static hashmaps for the lifetime requirements
-        let static_audiences: &'static HashMap<String, crate::filters::NoIdAudience> = Box::leak(Box::new(HashMap::new()));
+        let static_audiences: &'static HashMap<String, crate::filters::NoIdAudience> =
+            Box::leak(Box::new(HashMap::new()));
 
         let mut variable_id_map = HashMap::new();
         let mut variable_key_map = HashMap::new();
@@ -100,7 +101,7 @@ mod tests {
             platform: "linux".to_string(),
             hostname: "localhost".to_string(),
         };
-        let mut custom_data : HashMap<String, Value> = HashMap::new();
+        let mut custom_data: HashMap<String, Value> = HashMap::new();
         custom_data.insert("favouriteNull".to_string(), Value::Null);
 
         PopulatedUser {
@@ -119,7 +120,6 @@ mod tests {
             created_date: Utc::now(),
         }
     }
-
 
     fn setup_test_config(sdk_key: &str) {
         let full_config = load_test_config();
@@ -151,7 +151,11 @@ mod tests {
             bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
         };
 
-        assert!(result.is_ok(), "Failed to generate bucketed config: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to generate bucketed config: {:?}",
+            result.err()
+        );
 
         let bucketed_config = result.unwrap();
         assert_eq!(bucketed_config.user.user_id, "user123");
@@ -165,22 +169,41 @@ mod tests {
         setup_test_config(sdk_key);
 
         let mut user = create_test_user("user456");
-        user.custom_data.insert("age".to_string(), serde_json::Value::Number(serde_json::Number::from(25)));
-        user.custom_data.insert("tier".to_string(), serde_json::Value::String("premium".to_string()));
+        user.custom_data.insert(
+            "age".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(25)),
+        );
+        user.custom_data.insert(
+            "tier".to_string(),
+            serde_json::Value::String("premium".to_string()),
+        );
 
         let mut client_custom_data = HashMap::new();
-        client_custom_data.insert("session_id".to_string(), serde_json::Value::String("session123".to_string()));
+        client_custom_data.insert(
+            "session_id".to_string(),
+            serde_json::Value::String("session123".to_string()),
+        );
 
         let result = unsafe {
             bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
         };
 
-        assert!(result.is_ok(), "Failed to generate bucketed config with custom data: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to generate bucketed config with custom data: {:?}",
+            result.err()
+        );
 
         let bucketed_config = result.unwrap();
         assert_eq!(bucketed_config.user.user_id, "user456");
-        assert_eq!(bucketed_config.user.custom_data.get("age").unwrap(), &serde_json::Value::Number(serde_json::Number::from(25)));
-        assert_eq!(bucketed_config.user.custom_data.get("tier").unwrap(), &serde_json::Value::String("premium".to_string()));
+        assert_eq!(
+            bucketed_config.user.custom_data.get("age").unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from(25))
+        );
+        assert_eq!(
+            bucketed_config.user.custom_data.get("tier").unwrap(),
+            &serde_json::Value::String("premium".to_string())
+        );
     }
 
     #[tokio::test]
@@ -199,7 +222,12 @@ mod tests {
                 bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
             };
 
-            assert!(result.is_ok(), "Failed to generate bucketed config for user {}: {:?}", user_id, result.err());
+            assert!(
+                result.is_ok(),
+                "Failed to generate bucketed config for user {}: {:?}",
+                user_id,
+                result.err()
+            );
             results.push(result.unwrap());
         }
 
@@ -229,7 +257,12 @@ mod tests {
                 bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
             };
 
-            assert!(result.is_ok(), "Failed to generate bucketed config for country {}: {:?}", country, result.err());
+            assert!(
+                result.is_ok(),
+                "Failed to generate bucketed config for country {}: {:?}",
+                country,
+                result.err()
+            );
 
             let bucketed_config = result.unwrap();
             assert_eq!(bucketed_config.user.country, country);
@@ -242,7 +275,12 @@ mod tests {
         let client_custom_data = HashMap::new();
 
         let result = unsafe {
-            bucketing::generate_bucketed_config("nonexistent-sdk-key", user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(
+                "nonexistent-sdk-key",
+                user.clone(),
+                client_custom_data,
+            )
+            .await
         };
 
         assert!(result.is_err(), "Expected error for missing SDK key");
@@ -254,8 +292,14 @@ mod tests {
         setup_test_config(sdk_key);
 
         let mut user = create_test_user("user_private");
-        user.private_custom_data.insert("internal_id".to_string(), serde_json::Value::String("internal123".to_string()));
-        user.private_custom_data.insert("score".to_string(), serde_json::Value::Number(serde_json::Number::from(95)));
+        user.private_custom_data.insert(
+            "internal_id".to_string(),
+            serde_json::Value::String("internal123".to_string()),
+        );
+        user.private_custom_data.insert(
+            "score".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(95)),
+        );
 
         let client_custom_data = HashMap::new();
 
@@ -263,11 +307,29 @@ mod tests {
             bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
         };
 
-        assert!(result.is_ok(), "Failed to generate bucketed config with private custom data: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to generate bucketed config with private custom data: {:?}",
+            result.err()
+        );
 
         let bucketed_config = result.unwrap();
-        assert_eq!(bucketed_config.user.private_custom_data.get("internal_id").unwrap(), &serde_json::Value::String("internal123".to_string()));
-        assert_eq!(bucketed_config.user.private_custom_data.get("score").unwrap(), &serde_json::Value::Number(serde_json::Number::from(95)));
+        assert_eq!(
+            bucketed_config
+                .user
+                .private_custom_data
+                .get("internal_id")
+                .unwrap(),
+            &serde_json::Value::String("internal123".to_string())
+        );
+        assert_eq!(
+            bucketed_config
+                .user
+                .private_custom_data
+                .get("score")
+                .unwrap(),
+            &serde_json::Value::Number(serde_json::Number::from(95))
+        );
     }
 
     #[tokio::test]
@@ -307,13 +369,25 @@ mod tests {
         let mut user = create_test_user("test_merge");
 
         // Test combined custom data
-        user.custom_data.insert("public_key".to_string(), serde_json::Value::String("public_value".to_string()));
-        user.private_custom_data.insert("private_key".to_string(), serde_json::Value::String("private_value".to_string()));
+        user.custom_data.insert(
+            "public_key".to_string(),
+            serde_json::Value::String("public_value".to_string()),
+        );
+        user.private_custom_data.insert(
+            "private_key".to_string(),
+            serde_json::Value::String("private_value".to_string()),
+        );
 
         let combined = user.combined_custom_data();
         assert_eq!(combined.len(), 2);
-        assert_eq!(combined.get("public_key").unwrap(), &serde_json::Value::String("public_value".to_string()));
-        assert_eq!(combined.get("private_key").unwrap(), &serde_json::Value::String("private_value".to_string()));
+        assert_eq!(
+            combined.get("public_key").unwrap(),
+            &serde_json::Value::String("public_value".to_string())
+        );
+        assert_eq!(
+            combined.get("private_key").unwrap(),
+            &serde_json::Value::String("private_value".to_string())
+        );
     }
 
     // Production config tests using the real CDN config
@@ -343,7 +417,11 @@ mod tests {
             bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
         };
 
-        assert!(result.is_ok(), "Failed to generate bucketed config from production config: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to generate bucketed config from production config: {:?}",
+            result.err()
+        );
 
         let bucketed_config = result.unwrap();
         assert_eq!(bucketed_config.user.user_id, "prod_user_123");
@@ -359,22 +437,43 @@ mod tests {
         let mut user = create_test_user("prod_user_targeted");
         // Add targeting data that might affect bucketing
         user.country = "CA".to_string();
-        user.custom_data.insert("beta_user".to_string(), serde_json::Value::Bool(true));
-        user.custom_data.insert("subscription_tier".to_string(), serde_json::Value::String("premium".to_string()));
+        user.custom_data
+            .insert("beta_user".to_string(), serde_json::Value::Bool(true));
+        user.custom_data.insert(
+            "subscription_tier".to_string(),
+            serde_json::Value::String("premium".to_string()),
+        );
 
         let mut client_custom_data = HashMap::new();
-        client_custom_data.insert("feature_flag_context".to_string(), serde_json::Value::String("production".to_string()));
+        client_custom_data.insert(
+            "feature_flag_context".to_string(),
+            serde_json::Value::String("production".to_string()),
+        );
 
         let result = unsafe {
             bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
         };
 
-        assert!(result.is_ok(), "Failed to generate bucketed config with targeting data: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to generate bucketed config with targeting data: {:?}",
+            result.err()
+        );
 
         let bucketed_config = result.unwrap();
         assert_eq!(bucketed_config.user.country, "CA");
-        assert_eq!(bucketed_config.user.custom_data.get("beta_user").unwrap(), &serde_json::Value::Bool(true));
-        assert_eq!(bucketed_config.user.custom_data.get("subscription_tier").unwrap(), &serde_json::Value::String("premium".to_string()));
+        assert_eq!(
+            bucketed_config.user.custom_data.get("beta_user").unwrap(),
+            &serde_json::Value::Bool(true)
+        );
+        assert_eq!(
+            bucketed_config
+                .user
+                .custom_data
+                .get("subscription_tier")
+                .unwrap(),
+            &serde_json::Value::String("premium".to_string())
+        );
     }
 
     #[tokio::test]
@@ -403,7 +502,12 @@ mod tests {
                 bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
             };
 
-            assert!(result.is_ok(), "Failed to generate bucketed config for user scenario {}: {:?}", user_id, result.err());
+            assert!(
+                result.is_ok(),
+                "Failed to generate bucketed config for user scenario {}: {:?}",
+                user_id,
+                result.err()
+            );
 
             let bucketed_config = result.unwrap();
             assert_eq!(bucketed_config.user.user_id, user_id);
@@ -437,7 +541,10 @@ mod tests {
         }
 
         // Ensure all bucketing operations succeeded
-        assert_eq!(successful_buckets, total_users, "Not all users were successfully bucketed");
+        assert_eq!(
+            successful_buckets, total_users,
+            "Not all users were successfully bucketed"
+        );
     }
 
     #[test]
@@ -451,20 +558,35 @@ mod tests {
         assert_eq!(config.environment.key, "development");
 
         // Verify features and variables exist
-        assert!(!config.features.is_empty(), "Production config should have features");
-        assert!(!config.variables.is_empty(), "Production config should have variables");
+        assert!(
+            !config.features.is_empty(),
+            "Production config should have features"
+        );
+        assert!(
+            !config.variables.is_empty(),
+            "Production config should have variables"
+        );
 
         // Verify specific test feature exists
         let test_feature = config.features.iter().find(|f| f.key == "test");
-        assert!(test_feature.is_some(), "Production config should have 'test' feature");
+        assert!(
+            test_feature.is_some(),
+            "Production config should have 'test' feature"
+        );
 
         let test_feature = test_feature.unwrap();
         assert_eq!(test_feature._type, "release");
         assert_eq!(test_feature.variations.len(), 2);
 
         // Verify variable hashes exist
-        assert!(!config.variable_hashes.is_empty(), "Production config should have variable hashes");
-        assert!(config.variable_hashes.contains_key("test"), "Should have hash for 'test' variable");
+        assert!(
+            !config.variable_hashes.is_empty(),
+            "Production config should have variable hashes"
+        );
+        assert!(
+            config.variable_hashes.contains_key("test"),
+            "Should have hash for 'test' variable"
+        );
     }
 
     #[tokio::test]
@@ -480,11 +602,17 @@ mod tests {
         let client_custom_data = HashMap::new();
 
         let test_result = unsafe {
-            bucketing::generate_bucketed_config(test_sdk_key, user.clone(), client_custom_data.clone()).await
+            bucketing::generate_bucketed_config(
+                test_sdk_key,
+                user.clone(),
+                client_custom_data.clone(),
+            )
+            .await
         };
 
         let prod_result = unsafe {
-            bucketing::generate_bucketed_config(prod_sdk_key, user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(prod_sdk_key, user.clone(), client_custom_data)
+                .await
         };
 
         assert!(test_result.is_ok(), "Test config bucketing failed");
@@ -505,17 +633,35 @@ mod tests {
         load_test_config_v2();
         setup_test_config_v2("test-sdk-key-1");
         let bucketing_result = unsafe {
-            bucketing::generate_bucketed_config("test-sdk-key-1", user.clone(), HashMap::new()).await
+            bucketing::generate_bucketed_config("test-sdk-key-1", user.clone(), HashMap::new())
+                .await
         };
-        assert!(bucketing_result.is_ok(), "Failed to generate bucketed config for v2 user: {:?}", bucketing_result.err());
+        assert!(
+            bucketing_result.is_ok(),
+            "Failed to generate bucketed config for v2 user: {:?}",
+            bucketing_result.err()
+        );
         let bucketed_config = bucketing_result.unwrap();
 
-        assert_eq!("614ef8aa475928459060721d",bucketed_config.features.get("header-copy").unwrap()._id);
-        assert_eq!("615382338424cb11646d9670",bucketed_config.features.get("header-copy").unwrap().variation);
+        assert_eq!(
+            "614ef8aa475928459060721d",
+            bucketed_config.features.get("header-copy").unwrap()._id
+        );
+        assert_eq!(
+            "615382338424cb11646d9670",
+            bucketed_config
+                .features
+                .get("header-copy")
+                .unwrap()
+                .variation
+        );
 
         let json = serde_json::to_string_pretty(&bucketed_config);
-        assert!(json.is_ok(), "Failed to serialize bucketed config to JSON: {:?}", json.err());
+        assert!(
+            json.is_ok(),
+            "Failed to serialize bucketed config to JSON: {:?}",
+            json.err()
+        );
         println!("Bucketed Config JSON:\n{}", json.unwrap());
-
     }
 }

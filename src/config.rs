@@ -1,8 +1,8 @@
 use crate::feature::ConfigFeature;
 use crate::filters::NoIdAudience;
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::DateTime;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Project {
@@ -14,11 +14,15 @@ pub(crate) struct Project {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ProjectSettings {
-    #[serde(alias = "edgeDB", rename="edgeDB",)]
+    #[serde(alias = "edgeDB", rename = "edgeDB")]
     pub edgedb: EdgeDBSettings,
-    #[serde(alias = "optIn", rename="optIn", default)]
+    #[serde(alias = "optIn", rename = "optIn", default)]
     pub optin: OptInSettings,
-    #[serde(alias = "disablePassthroughRollouts", rename="disablePassthroughRollouts", default)]
+    #[serde(
+        alias = "disablePassthroughRollouts",
+        rename = "disablePassthroughRollouts",
+        default
+    )]
     pub disable_passthrough_rollouts: bool,
     #[serde(skip_serializing)]
     pub obfuscation: Option<ObfuscationSettings>,
@@ -36,7 +40,7 @@ pub(crate) struct OptInSettings {
     pub title: String,
     #[serde(default)]
     pub description: String,
-    #[serde(default, alias = "imageURL", rename="imageURL")]
+    #[serde(default, alias = "imageURL", rename = "imageURL")]
     pub image_url: String,
     #[serde(default)]
     pub colors: OptInColors,
@@ -156,7 +160,8 @@ impl<'a> ConfigBody<'a> {
             for variation in &feature.variations {
                 for variable in &variation.variables {
                     if !self.variable_id_to_feature_map.contains_key(&variable._var) {
-                        self.variable_id_to_feature_map.insert(variable._var.clone(), feature.clone());
+                        self.variable_id_to_feature_map
+                            .insert(variable._var.clone(), feature.clone());
                     }
                 }
             }
@@ -164,14 +169,18 @@ impl<'a> ConfigBody<'a> {
 
         // Build mappings for variables by key and ID
         for variable in &self.variables {
-            self.variable_key_map.insert(variable.key.clone(), variable.clone());
-            self.variable_id_map.insert(variable._id.clone(), variable.clone());
+            self.variable_key_map
+                .insert(variable.key.clone(), variable.clone());
+            self.variable_id_map
+                .insert(variable._id.clone(), variable.clone());
         }
 
         // Sort the feature distributions by "_variation" attribute in descending alphabetical order
         for feature in &mut self.features {
             for target in &mut feature.configuration.targets {
-                target.distribution.sort_by(|a, b| b.variation.cmp(&a.variation));
+                target
+                    .distribution
+                    .sort_by(|a, b| b.variation.cmp(&a.variation));
             }
         }
     }

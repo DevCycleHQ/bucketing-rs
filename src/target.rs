@@ -22,7 +22,6 @@ impl Target {
         self,
         bounded_hash: f64,
     ) -> Result<(String, bool), DevCycleError> {
-
         let mut distribution_index: f64 = 0.0;
         let previous_distribution_index: f64 = 0.0;
         let is_randomized = self.distribution.len() > 1;

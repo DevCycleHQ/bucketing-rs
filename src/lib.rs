@@ -16,13 +16,13 @@ pub mod user;
 pub mod versioncompare;
 
 #[cfg(test)]
-mod config_tests;
-#[cfg(test)]
-mod filter_tests;
-#[cfg(test)]
 mod bucketing_tests;
 mod client_custom_data;
+#[cfg(test)]
+mod config_tests;
 mod event_queue;
+#[cfg(test)]
+mod filter_tests;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
