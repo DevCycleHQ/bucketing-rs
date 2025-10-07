@@ -656,6 +656,11 @@ mod tests {
                 .variation
         );
 
+        assert_eq!(2, bucketed_config.features.len());
+        assert_eq!(2, bucketed_config.variable_variation_map.len());
+        assert_eq!(2, bucketed_config.feature_variation_map.len());
+        assert_eq!(2, bucketed_config.variables.len());
+
         let json = serde_json::to_string_pretty(&bucketed_config);
         assert!(
             json.is_ok(),

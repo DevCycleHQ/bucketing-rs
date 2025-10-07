@@ -46,7 +46,7 @@ pub(crate) fn get_current_rollout_percentage(
     let current_date_time = current_date;
 
     if rollout._type == constants::ROLLOUT_TYPE_SCHEDULE {
-        if current_date_time > rollout_start_date {
+        if current_date_time.gt(&rollout_start_date) {
             return 1.0;
         }
         return 0.0;
@@ -81,7 +81,7 @@ pub(crate) fn get_current_rollout_percentage(
     }
 
     let mut current_stage = _current_stage;
-    if _current_stage == null_mut() && rollout_start_date < current_date_time {
+    if _current_stage == null_mut() && rollout_start_date.lt(&current_date_time) {
         current_stage = &mut RolloutStage {
             _type: constants::ROLLOUT_TYPE_DISCRETE.parse().unwrap(),
             date: rollout_start_date,
@@ -131,8 +131,7 @@ pub(crate) unsafe fn evaluate_segmentation_for_feature(
     let mut ret: Result<(Target, bool), DevCycleError> =
         Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_TARGETS);
     for target in feature.configuration.targets.clone() {
-        let passthrough_enabled = config.project.settings.disable_passthrough_rollouts;
-        let mut does_user_passthrough = true;
+        let passthrough_enabled = !config.project.settings.disable_passthrough_rollouts;
         let mut rollout_criteria_met = true;
         let mut is_rollout = false;
         if target.rollout.is_some() && passthrough_enabled {
@@ -143,15 +142,13 @@ pub(crate) unsafe fn evaluate_segmentation_for_feature(
             );
             let bounded_hash =
                 murmurhash::generate_bounded_hashes(bucketing_value, target._id.clone());
-            does_user_passthrough =
-                does_user_pass_rollout(target.rollout.clone(), bounded_hash.rollout_hash);
             rollout_criteria_met =
                 is_user_in_rollout(target.rollout.clone().unwrap(), bounded_hash.rollout_hash);
             is_rollout = rollout_criteria_met;
         }
         let operator = &target.audience.filters;
         if rollout_criteria_met
-            && operator.evaluate((*config).audiences, &mut user, &client_custom_data.clone())
+            && operator.evaluate(config.audiences, &mut user, &client_custom_data.clone())
         {
             ret = Ok((target.clone(), is_rollout.clone()));
             return ret;
@@ -186,7 +183,7 @@ pub(crate) unsafe fn does_user_qualify_for_feature(
 
     let bounded_hashes = murmurhash::generate_bounded_hashes(bucketing_value, target._id.clone());
     let rollout_hash = bounded_hashes.rollout_hash;
-    let passthrough_enabled = !(*config).project.settings.disable_passthrough_rollouts;
+    let passthrough_enabled = !config.project.settings.disable_passthrough_rollouts;
 
     if !passthrough_enabled && !does_user_pass_rollout(target.rollout.clone(), rollout_hash) {
         return Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_ROLLOUTS);
