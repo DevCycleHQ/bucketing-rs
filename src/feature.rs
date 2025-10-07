@@ -82,11 +82,13 @@ pub struct FeaturePrerequisites {
 pub struct Feature {
     pub _id: String,
     pub key: String,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", alias = "type")]
     pub _type: String,
-    #[serde(rename = "_variation")]
+    #[serde(rename = "_variation", alias = "_variation")]
     pub variation: String,
+    #[serde(rename = "variationKey", alias = "variationKey")]
     pub variationkey: String,
+    #[serde(rename = "variationName", alias = "variationName")]
     pub variationname: String,
     #[serde(skip_serializing)]
     pub evalreason: Option<String>,
