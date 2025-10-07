@@ -13,7 +13,7 @@ use std::ops::Sub;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-pub fn determine_user_bucketing_value_for_target(
+pub(crate) fn determine_user_bucketing_value_for_target(
     target_bucketing_key: String,
     user_id: String,
     merged_custom_data: HashMap<String, serde_json::Value>,
@@ -211,7 +211,7 @@ pub(crate) fn bucket_user_for_variation(
     }
     Err(missing_variation())
 }
-pub async unsafe fn generate_bucketed_config(
+pub(crate) async unsafe fn generate_bucketed_config(
     sdk_key: &str,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
