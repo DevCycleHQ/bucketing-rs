@@ -4,83 +4,16 @@ use crate::errors::DevCycleError;
 use crate::generate_bucketed_config;
 use crate::platform_data::PlatformData;
 use crate::user::{PopulatedUser, User};
-
+use crate::event::*;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::ops::Add;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum EventType {
-    AggregateVariableEvaluated,
-    AggregateVariableDefaulted,
-    VariableEvaluated,
-    VariableDefaulted,
-    SDKConfig,
-    CustomEvent,
-}
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum EvaluationReason {
-    TargetingMatch,
-    Split,
-    Default,
-    Error,
-}
-type EvalReasonAggMap = HashMap<EvaluationReason, i64>;
-type VariationAggMap = HashMap<String, EvalReasonAggMap>; // variation_id -> (reason -> count)
-type FeatureAggMap = HashMap<String, VariationAggMap>; // feature_id -> (variation_id -> (reason -> count))
-type VariableAggMap = HashMap<String, FeatureAggMap>; // variable_key -> count
-type AggregateEventQueue = HashMap<EventType, VariableAggMap>;
-type UserEventQueue = HashMap<String, UserEventsBatchRecord>;
-struct Event {
-    event_type: EventType,
-    target: String,
-    custom_type: String,
-    user_id: String,
-    client_date: std::time::Instant,
-    value: f64,
-    feature_vars: HashMap<String, String>,
-    meta_data: HashMap<String, serde_json::Value>,
-}
 
-struct UserEventData {
-    event: Event,
-    user: User,
-}
-
-struct UserEventsBatchRecord {
-    user: PopulatedUser,
-    events: Vec<Event>,
-}
-
-struct AggEventQueueRawMessage {
-    event_type: EventType,
-    variable_key: String,
-    feature_id: String,
-    variation_id: String,
-    eval_metadata: EvalReasonAggMap,
-}
-
-struct EventQueue {
-    sdk_key: String,
-    agg_event_queue_raw_tx: mpsc::Sender<AggEventQueueRawMessage>,
-    agg_event_queue_raw_rx: mpsc::Receiver<AggEventQueueRawMessage>,
-    user_event_queue_raw_tx: mpsc::Sender<String>,
-    user_event_queue_raw_rx: mpsc::Receiver<String>,
-    agg_event_queue: AggregateEventQueue,
-    user_event_queue: UserEventQueue,
-    user_event_queue_count: i32,
-    queue_access_mutex: tokio::sync::Mutex<()>,
-    events_flushed: i64,
-    events_dropped: i64,
-    events_reported: i64,
-    platform_data: *const PlatformData,
-    options: EventQueueOptions,
-}
-
-struct EventQueueOptions {
+pub(crate) struct EventQueueOptions {
     pub flush_events_interval: Duration,
     pub disable_automatic_event_logging: bool,
     pub disable_custom_event_logging: bool,
@@ -113,6 +46,22 @@ impl Default for EventQueueOptions {
             events_api_base_uri: "https://events.devcycle.com".to_string(),
         }
     }
+}
+pub(crate) struct EventQueue {
+    pub(crate) sdk_key: String,
+    pub(crate) agg_event_queue_raw_tx: mpsc::Sender<crate::event::AggEventQueueRawMessage>,
+    pub(crate) agg_event_queue_raw_rx: mpsc::Receiver<crate::event::AggEventQueueRawMessage>,
+    pub(crate) user_event_queue_raw_tx: mpsc::Sender<String>,
+    pub(crate) user_event_queue_raw_rx: mpsc::Receiver<String>,
+    pub(crate) agg_event_queue: crate::event::AggregateEventQueue,
+    pub(crate) user_event_queue: crate::event::UserEventQueue,
+    pub(crate) user_event_queue_count: i32,
+    pub(crate) queue_access_mutex: tokio::sync::Mutex<()>,
+    pub(crate) events_flushed: i64,
+    pub(crate) events_dropped: i64,
+    pub(crate) events_reported: i64,
+    pub(crate) platform_data: *const PlatformData,
+    pub(crate) options: crate::event_queue::EventQueueOptions,
 }
 
 impl EventQueue {
@@ -210,7 +159,7 @@ impl EventQueue {
             .await;
 
         if success.is_err() {
-            self.events_dropped.add(1);
+            self.events_dropped +=1 ;
         }
         return Ok(true);
     }
@@ -221,7 +170,7 @@ impl EventQueue {
             .send(user.user_id.clone())
             .await;
         if success.is_err() {
-            self.events_dropped.add(1);
+            self.events_dropped += 1;
         }
         return Ok(true);
     }
@@ -322,20 +271,19 @@ impl EventQueue {
     async unsafe fn process_user_events(&mut self, mut event: UserEventData) -> Result<bool, DevCycleError> {
         let client_custom_data = get_client_custom_data(self.sdk_key.clone());
 
-
         let populated_user =
             PopulatedUser::new(event.user.clone(), (*self.platform_data).clone(), client_custom_data.clone());
-        let bucketedConfig = generate_bucketed_config(
+        let bucketed_config = generate_bucketed_config(
             self.sdk_key.clone(),
             populated_user,
             client_custom_data,
         )
         .await;
-        if bucketedConfig.is_err() {
-            return Err(bucketedConfig.err().unwrap());
+        if bucketed_config.is_err() {
+            return Err(bucketed_config.err().unwrap());
         }
 
-        event.event.feature_vars = bucketedConfig?.feature_variation_map;
+        event.event.feature_vars = bucketed_config?.feature_variation_map;
 
         if event.event.event_type == EventType::CustomEvent {
             event.event.user_id = event.user.user_id
