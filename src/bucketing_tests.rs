@@ -121,13 +121,13 @@ mod tests {
         }
     }
 
-    fn setup_test_config(sdk_key: &str) {
+    fn setup_test_config(sdk_key: String) {
         let full_config = load_test_config();
         let config_body = create_config_body_from_full_config(full_config);
 
         // Store the config in the global CONFIGS map
         let mut configs = configmanager::CONFIGS.write().unwrap();
-        configs.insert(sdk_key.to_string(), config_body.into());
+        configs.insert(sdk_key, config_body.into());
     }
 
     fn setup_test_config_v2(sdk_key: &str) {
@@ -142,13 +142,13 @@ mod tests {
     #[tokio::test]
     async fn test_generate_bucketed_config_basic_user() {
         let sdk_key = "test-sdk-key-1";
-        setup_test_config(sdk_key);
+        setup_test_config(sdk_key.to_string());
 
         let user = create_test_user("user123");
         let client_custom_data = HashMap::new();
 
         let result = unsafe {
-            bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
         };
 
         assert!(
@@ -166,7 +166,7 @@ mod tests {
     #[tokio::test]
     async fn test_generate_bucketed_config_with_custom_data() {
         let sdk_key = "test-sdk-key-2";
-        setup_test_config(sdk_key);
+        setup_test_config(sdk_key.to_string());
 
         let mut user = create_test_user("user456");
         user.custom_data.insert(
@@ -185,7 +185,7 @@ mod tests {
         );
 
         let result = unsafe {
-            bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
         };
 
         assert!(
@@ -209,7 +209,7 @@ mod tests {
     #[tokio::test]
     async fn test_generate_bucketed_config_multiple_users() {
         let sdk_key = "test-sdk-key-3";
-        setup_test_config(sdk_key);
+        setup_test_config(sdk_key.to_string());
 
         let user_ids = vec!["user1", "user2", "user3", "user4", "user5"];
         let mut results = Vec::new();
@@ -219,7 +219,7 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
             };
 
             assert!(
@@ -243,7 +243,7 @@ mod tests {
     #[tokio::test]
     async fn test_generate_bucketed_config_different_countries() {
         let sdk_key = "test-sdk-key-4";
-        setup_test_config(sdk_key);
+        setup_test_config(sdk_key.to_string());
 
         let countries = vec!["US", "CA", "GB", "DE", "FR"];
 
@@ -254,7 +254,7 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
             };
 
             assert!(
@@ -276,7 +276,7 @@ mod tests {
 
         let result = unsafe {
             bucketing::generate_bucketed_config(
-                "nonexistent-sdk-key",
+                "nonexistent-sdk-key".to_string(),
                 user.clone(),
                 client_custom_data,
             )
@@ -289,7 +289,7 @@ mod tests {
     #[tokio::test]
     async fn test_generate_bucketed_config_with_private_custom_data() {
         let sdk_key = "test-sdk-key-5";
-        setup_test_config(sdk_key);
+        setup_test_config(sdk_key.to_string());
 
         let mut user = create_test_user("user_private");
         user.private_custom_data.insert(
@@ -304,7 +304,7 @@ mod tests {
         let client_custom_data = HashMap::new();
 
         let result = unsafe {
-            bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
         };
 
         assert!(
@@ -396,19 +396,19 @@ mod tests {
         serde_json::from_str(config_json).expect("Failed to parse production config")
     }
 
-    fn setup_production_config(sdk_key: &str) {
+    fn setup_production_config(sdk_key: String) {
         let full_config = load_production_config();
         let config_body = create_config_body_from_full_config(full_config);
 
         // Store the config in the global CONFIGS map
         let mut configs = configmanager::CONFIGS.write().unwrap();
-        configs.insert(sdk_key.to_string(), config_body.into());
+        configs.insert(sdk_key, config_body.into());
     }
 
     #[tokio::test]
     async fn test_production_config_basic_bucketing() {
-        let sdk_key = "dvc_server_token_hash";
-        setup_production_config(sdk_key);
+        let sdk_key = "dvc_server_token_hash".to_string();
+        setup_production_config(sdk_key.clone());
 
         let user = create_test_user("prod_user_123");
         let client_custom_data = HashMap::new();
@@ -431,8 +431,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_production_config_with_targeting_data() {
-        let sdk_key = "prod-sdk-key-2";
-        setup_production_config(sdk_key);
+        let sdk_key = "prod-sdk-key-2".to_string();
+        setup_production_config(sdk_key.clone());
 
         let mut user = create_test_user("prod_user_targeted");
         // Add targeting data that might affect bucketing
@@ -479,7 +479,7 @@ mod tests {
     #[tokio::test]
     async fn test_production_config_multiple_user_scenarios() {
         let sdk_key = "prod-sdk-key-3";
-        setup_production_config(sdk_key);
+        setup_production_config(sdk_key.to_string().clone());
 
         // Test different user scenarios that might exist in production
         let test_scenarios = vec![
@@ -499,7 +499,7 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
             };
 
             assert!(
@@ -518,8 +518,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_production_config_stress_test() {
-        let sdk_key = "prod-sdk-key-stress";
-        setup_production_config(sdk_key);
+        let sdk_key = "prod-sdk-key-stress".to_string();
+        setup_production_config(sdk_key.to_string());
 
         // Generate bucketed configs for many users to test performance and consistency
         let mut successful_buckets = 0;
@@ -530,7 +530,7 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key, user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
             };
 
             if result.is_ok() {
@@ -595,15 +595,15 @@ mod tests {
         let test_sdk_key = "test-config-key";
         let prod_sdk_key = "prod-config-key";
 
-        setup_test_config(test_sdk_key);
-        setup_production_config(prod_sdk_key);
+        setup_test_config(test_sdk_key.to_string());
+        setup_production_config(prod_sdk_key.to_string());
 
         let user = create_test_user("consistency_test_user");
         let client_custom_data = HashMap::new();
 
         let test_result = unsafe {
             bucketing::generate_bucketed_config(
-                test_sdk_key,
+                test_sdk_key.to_string(),
                 user.clone(),
                 client_custom_data.clone(),
             )
@@ -611,7 +611,7 @@ mod tests {
         };
 
         let prod_result = unsafe {
-            bucketing::generate_bucketed_config(prod_sdk_key, user.clone(), client_custom_data)
+            bucketing::generate_bucketed_config(prod_sdk_key.to_string(), user.clone(), client_custom_data)
                 .await
         };
 
@@ -633,7 +633,7 @@ mod tests {
         load_test_config_v2();
         setup_test_config_v2("test-sdk-key-1");
         let bucketing_result = unsafe {
-            bucketing::generate_bucketed_config("test-sdk-key-1", user.clone(), HashMap::new())
+            bucketing::generate_bucketed_config("test-sdk-key-1".to_string(), user.clone(), HashMap::new())
                 .await
         };
         assert!(

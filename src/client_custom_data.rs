@@ -6,9 +6,10 @@ use std::sync::RwLock;
 // Global client custom data storage
 pub(crate) static CLIENT_CUSTOM_DATA: Lazy<RwLock<HashMap<String, HashMap<String, Value>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
-pub fn get_client_custom_data(sdk_key: &str) -> Option<HashMap<String, Value>> {
+pub fn get_client_custom_data(sdk_key: String) -> HashMap<String, Value> {
     let data = CLIENT_CUSTOM_DATA.read().unwrap();
-    data.get(sdk_key).cloned()
+    let values = data.get(&sdk_key).cloned();
+    return values.unwrap()
 }
 
 pub fn set_client_custom_data(sdk_key: String, data: HashMap<String, Value>) {

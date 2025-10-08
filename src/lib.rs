@@ -29,7 +29,7 @@ pub fn add(left: u64, right: u64) -> u64 {
 }
 
 pub async unsafe fn generate_bucketed_config(
-    sdk_key: &str,
+    sdk_key: String,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<BucketedUserConfig, DevCycleError> {

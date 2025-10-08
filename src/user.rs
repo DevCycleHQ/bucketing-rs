@@ -4,9 +4,8 @@ use crate::platform_data::PlatformData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::iter::Skip;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct User {
     // Unique id to identify the user
     pub user_id: String,
@@ -130,6 +129,31 @@ impl PopulatedUser {
             ret.extend(self.private_custom_data.clone());
         }
         ret
+    }
+    pub fn new(user: User, platform_data: PlatformData, client_custom_data: HashMap<String, serde_json::Value>) -> PopulatedUser {
+
+        let mut popuser = PopulatedUser {
+            user_id: user.user_id.clone(),
+            email: user.email.clone(),
+            name: user.name.clone(),
+            private_custom_data: user.private_custom_data.clone(),
+            custom_data: user.custom_data.clone(),
+            language: user.language,
+            country: user.country.clone(),
+            app_version: user.app_version.clone(),
+            app_build: user.app_build.clone(),
+            device_model: user.device_model.clone(),
+            last_seen_date: user.last_seen_date.clone(),
+            platform_data,
+            created_date: Utc::now(),
+        };
+        for (k, v) in client_custom_data {
+            if !popuser.custom_data.contains_key(&k) && !popuser.private_custom_data.contains_key(&k) {
+                popuser.custom_data.insert(k, v);
+            }
+        }
+
+        return popuser;
     }
 }
 

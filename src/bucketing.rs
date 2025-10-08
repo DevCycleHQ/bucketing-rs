@@ -212,14 +212,14 @@ pub(crate) fn bucket_user_for_variation(
     Err(missing_variation())
 }
 pub(crate) async unsafe fn generate_bucketed_config(
-    sdk_key: &str,
+    sdk_key: String,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<BucketedUserConfig, DevCycleError> {
     let config_result = configmanager::CONFIGS
         .read()
         .unwrap()
-        .get(sdk_key)
+        .get(&sdk_key)
         .cloned()
         .ok_or(missing_config())?;
 
