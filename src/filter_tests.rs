@@ -70,14 +70,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "mobile".to_string(),
                 sdk_version: "1.0.0".to_string(),
                 platform_version: "10.3.1".to_string(),
                 device_model: "".to_string(),
                 platform: "iOS".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         }
     }
@@ -306,14 +306,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "".to_string(),
                 device_model: "".to_string(),
                 platform: "Android TV".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -868,14 +868,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "mobile".to_string(),
                 sdk_version: "1.0.0".to_string(),
                 platform_version: "2.0.0".to_string(),
                 device_model: "".to_string(),
                 platform: "iOS".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -929,14 +929,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "mobile".to_string(),
                 sdk_version: "1.0.0".to_string(),
                 platform_version: "2.0.0".to_string(),
                 device_model: "".to_string(),
                 platform: "iOS".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1047,14 +1047,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "".to_string(),
                 device_model: "".to_string(),
                 platform: "".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1078,14 +1078,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "".to_string(),
                 device_model: "".to_string(),
                 platform: "".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1147,14 +1147,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "".to_string(),
                 device_model: "".to_string(),
                 platform: "".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1162,19 +1162,84 @@ mod tests {
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
         let test_cases = vec![
-            ("User email equals filter", constants::COMPARATOR_EQUAL, vec!["test@devcycle.com"], true),
-            ("User email does not equal filter", constants::COMPARATOR_EQUAL, vec!["someone.else@devcycle.com"], false),
-            ("User email in filter set", constants::COMPARATOR_CONTAIN, vec!["@gmail.com", "@devcycle.com", "@hotmail.com"], true),
-            ("User email starts with filter", constants::COMPARATOR_START_WITH, vec!["test"], true),
-            ("User email ends with filter", constants::COMPARATOR_END_WITH, vec!["@devcycle.com"], true),
-            ("User email does not start with filter", constants::COMPARATOR_NOT_START_WITH, vec!["user"], true),
-            ("User email does not end with filter", constants::COMPARATOR_NOT_END_WITH, vec!["@devcycle.io"], true),
-            ("User email does start with filter with empty value", constants::COMPARATOR_START_WITH, vec![""], false),
-            ("User email does end with filter with empty value", constants::COMPARATOR_END_WITH, vec![""], false),
-            ("User email does contain filter with empty value", constants::COMPARATOR_CONTAIN, vec![""], false),
-            ("User email does not start with filter with empty value", constants::COMPARATOR_NOT_START_WITH, vec![""], true),
-            ("User email does not end with filter with empty value", constants::COMPARATOR_NOT_END_WITH, vec![""], true),
-            ("User email does not contain filter with empty value", constants::COMPARATOR_NOT_CONTAIN, vec![""], true),
+            (
+                "User email equals filter",
+                constants::COMPARATOR_EQUAL,
+                vec!["test@devcycle.com"],
+                true,
+            ),
+            (
+                "User email does not equal filter",
+                constants::COMPARATOR_EQUAL,
+                vec!["someone.else@devcycle.com"],
+                false,
+            ),
+            (
+                "User email in filter set",
+                constants::COMPARATOR_CONTAIN,
+                vec!["@gmail.com", "@devcycle.com", "@hotmail.com"],
+                true,
+            ),
+            (
+                "User email starts with filter",
+                constants::COMPARATOR_START_WITH,
+                vec!["test"],
+                true,
+            ),
+            (
+                "User email ends with filter",
+                constants::COMPARATOR_END_WITH,
+                vec!["@devcycle.com"],
+                true,
+            ),
+            (
+                "User email does not start with filter",
+                constants::COMPARATOR_NOT_START_WITH,
+                vec!["user"],
+                true,
+            ),
+            (
+                "User email does not end with filter",
+                constants::COMPARATOR_NOT_END_WITH,
+                vec!["@devcycle.io"],
+                true,
+            ),
+            (
+                "User email does start with filter with empty value",
+                constants::COMPARATOR_START_WITH,
+                vec![""],
+                false,
+            ),
+            (
+                "User email does end with filter with empty value",
+                constants::COMPARATOR_END_WITH,
+                vec![""],
+                false,
+            ),
+            (
+                "User email does contain filter with empty value",
+                constants::COMPARATOR_CONTAIN,
+                vec![""],
+                false,
+            ),
+            (
+                "User email does not start with filter with empty value",
+                constants::COMPARATOR_NOT_START_WITH,
+                vec![""],
+                true,
+            ),
+            (
+                "User email does not end with filter with empty value",
+                constants::COMPARATOR_NOT_END_WITH,
+                vec![""],
+                true,
+            ),
+            (
+                "User email does not contain filter with empty value",
+                constants::COMPARATOR_NOT_CONTAIN,
+                vec![""],
+                true,
+            ),
         ];
 
         for (name, comparator, values, expected) in test_cases {
@@ -1210,14 +1275,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "10.3.1".to_string(),
                 device_model: "".to_string(),
                 platform: "iOS".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1225,9 +1290,24 @@ mod tests {
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
         let test_cases = vec![
-            ("User platform equals filter", constants::COMPARATOR_EQUAL, vec!["iOS"], true),
-            ("User platform does not equal filter", constants::COMPARATOR_EQUAL, vec!["Linux"], false),
-            ("User platform in filter set", constants::COMPARATOR_CONTAIN, vec!["Linux", "macOS", "iOS"], true),
+            (
+                "User platform equals filter",
+                constants::COMPARATOR_EQUAL,
+                vec!["iOS"],
+                true,
+            ),
+            (
+                "User platform does not equal filter",
+                constants::COMPARATOR_EQUAL,
+                vec!["Linux"],
+                false,
+            ),
+            (
+                "User platform in filter set",
+                constants::COMPARATOR_CONTAIN,
+                vec!["Linux", "macOS", "iOS"],
+                true,
+            ),
         ];
 
         for (name, comparator, values, expected) in test_cases {

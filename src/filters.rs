@@ -412,7 +412,7 @@ impl Filter {
         client_custom_data: &HashMap<String, serde_json::Value>,
     ) -> bool {
         if self.filters.is_empty() {
-            return true
+            return true;
             // // Standard boolean logic: empty AND is true (vacuous truth), empty OR is false
             // return match self.operator.unwrap().clone().to_string() {
             //     constants::OPERATOR_AND => true,
