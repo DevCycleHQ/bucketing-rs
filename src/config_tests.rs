@@ -829,4 +829,82 @@ mod tests {
 
         println!("✅ All validations passed for hardcoded config!");
     }
+
+    #[test]
+    fn test_parse_config_body() {
+        // Test case 1: Bad JSON
+        let bad_json = r#"{"#;
+        let result: Result<FullConfig, _> = serde_json::from_str(bad_json);
+        assert!(result.is_err(), "Bad JSON should fail to parse");
+
+        // Test case 2: Missing project
+        let missing_project = r#"{
+            "audiences": {},
+            "environment": {},
+            "features": [],
+            "variables": []
+        }"#;
+        let result: Result<FullConfig, _> = serde_json::from_str(missing_project);
+        assert!(
+            result.is_err(),
+            "Config missing project should fail to parse"
+        );
+
+        // Test case 3: Minimal valid config
+        let minimal_valid = r#"{
+          "project": {
+            "_id": "61535533396f00bab586cb17",
+            "key": "test-project",
+            "a0_organization": "org_12345612345",
+            "settings": {}
+          },
+          "environment": {
+            "_id": "6153553b8cf4e45e0464268d",
+            "key": "test-environment"
+          },
+          "features": [],
+          "variables": []
+        }"#;
+        let result: Result<FullConfig, _> = serde_json::from_str(minimal_valid);
+        assert!(result.is_ok(), "Minimal valid config should parse successfully");
+
+        let config = result.unwrap();
+        assert_eq!(config.project._id, "61535533396f00bab586cb17");
+        assert_eq!(config.project.key, "test-project");
+        assert_eq!(config.project.a0_organization, "org_12345612345");
+        assert_eq!(config.environment._id, "6153553b8cf4e45e0464268d");
+        assert_eq!(config.environment.key, "test-environment");
+        assert_eq!(config.features.len(), 0);
+        assert_eq!(config.variables.len(), 0);
+        assert!(config.audiences.is_empty());
+
+        // Test case 4: Invalid variable type
+        let invalid_variable_type = r#"{
+          "project": {
+            "_id": "61535533396f00bab586cb17",
+            "key": "test-project",
+            "a0_organization": "org_12345612345",
+            "settings": {}
+          },
+          "environment": {
+            "_id": "6153553b8cf4e45e0464268d",
+            "key": "test-environment"
+          },
+          "features": [],
+          "variables": [{
+            "_id": "id",
+            "type": "squirrel",
+            "key": "key"
+          }]
+        }"#;
+        // Note: In Rust, this will parse successfully because we accept any string for type
+        // If we want strict validation, we'd need to add validation after parsing
+        let result: Result<FullConfig, _> = serde_json::from_str(invalid_variable_type);
+        assert!(result.is_ok(), "Config with invalid variable type will parse (validation needed separately)");
+
+        let config = result.unwrap();
+        assert_eq!(config.variables.len(), 1);
+        assert_eq!(config.variables[0]._type, "squirrel");
+        // In a real scenario, you'd validate variable types after parsing
+    }
 }
