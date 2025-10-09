@@ -22,8 +22,8 @@ mod client_custom_data;
 mod config_tests;
 #[cfg(test)]
 mod configmanager_tests;
-mod event_queue;
 mod event;
+mod event_queue;
 #[cfg(test)]
 mod filter_tests;
 #[cfg(test)]
@@ -43,7 +43,7 @@ pub async unsafe fn generate_bucketed_config(
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<BucketedUserConfig, DevCycleError> {
-    bucketing::generate_bucketed_config(sdk_key, user, client_custom_data).await
+    bucketing::generate_bucketed_config(sdk_key.to_string(), user, client_custom_data).await
 }
 
 pub async unsafe fn generate_bucketed_config_from_user(
@@ -52,7 +52,8 @@ pub async unsafe fn generate_bucketed_config_from_user(
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<BucketedUserConfig, DevCycleError> {
     let populated_user = user.get_populated_user(sdk_key);
-    bucketing::generate_bucketed_config(sdk_key, populated_user, client_custom_data).await
+    bucketing::generate_bucketed_config(sdk_key.to_string(), populated_user, client_custom_data)
+        .await
 }
 
 #[cfg(test)]

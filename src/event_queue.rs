@@ -1,17 +1,15 @@
 use crate::client_custom_data::get_client_custom_data;
 use crate::config::ConfigBody;
 use crate::errors::DevCycleError;
+use crate::event::*;
 use crate::generate_bucketed_config;
 use crate::platform_data::PlatformData;
 use crate::user::{PopulatedUser, User};
-use crate::event::*;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::ops::Add;
 use std::time::Duration;
 use tokio::sync::mpsc;
-
-
 
 pub(crate) struct EventQueueOptions {
     pub flush_events_interval: Duration,
@@ -159,7 +157,7 @@ impl EventQueue {
             .await;
 
         if success.is_err() {
-            self.events_dropped +=1 ;
+            self.events_dropped += 1;
         }
         return Ok(true);
     }
@@ -268,17 +266,20 @@ impl EventQueue {
         }
     }
 
-    async unsafe fn process_user_events(&mut self, mut event: UserEventData) -> Result<bool, DevCycleError> {
+    async unsafe fn process_user_events(
+        &mut self,
+        mut event: UserEventData,
+    ) -> Result<bool, DevCycleError> {
         let client_custom_data = get_client_custom_data(self.sdk_key.clone());
 
-        let populated_user =
-            PopulatedUser::new(event.user.clone(), (*self.platform_data).clone(), client_custom_data.clone());
-        let bucketed_config = generate_bucketed_config(
-            self.sdk_key.clone(),
-            populated_user,
-            client_custom_data,
-        )
-        .await;
+        let populated_user = PopulatedUser::new(
+            event.user.clone(),
+            (*self.platform_data).clone(),
+            client_custom_data.clone(),
+        );
+        let bucketed_config =
+            generate_bucketed_config(&self.sdk_key.clone(), populated_user, client_custom_data)
+                .await;
         if bucketed_config.is_err() {
             return Err(bucketed_config.err().unwrap());
         }

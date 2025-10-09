@@ -1,9 +1,9 @@
 use crate::constants;
 use crate::user::PopulatedUser;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use regex::Regex;
 use semver::Version;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]

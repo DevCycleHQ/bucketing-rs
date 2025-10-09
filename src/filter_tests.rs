@@ -6,7 +6,7 @@ mod tests {
     use crate::user::PopulatedUser;
     use chrono::Utc;
     use std::collections::HashMap;
-    use std::sync::Once;
+    use std::sync::{Arc, Once};
 
     const TEST_SDK_KEY: &str = "test-sdk-key";
 
@@ -1350,7 +1350,10 @@ mod tests {
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
-        assert_eq!(true,filter_gt.evaluate(&audiences, &mut user, &client_custom_data));
+        assert_eq!(
+            true,
+            filter_gt.evaluate(&audiences, &mut user, &client_custom_data)
+        );
     }
 
     #[test]
@@ -2086,10 +2089,7 @@ mod tests {
 
     #[test]
     fn test_version_equal_array_no_match() {
-        let test_cases = vec![
-            ("1", vec!["2", "1.1"]),
-            ("1.1", vec!["1.2", "1"]),
-        ];
+        let test_cases = vec![("1", vec!["2", "1.1"]), ("1.1", vec!["1.2", "1"])];
 
         for (version, filter_values) in test_cases {
             let filter = Filter {
@@ -2611,7 +2611,8 @@ mod tests {
 
         let mut user = create_test_user();
         user.custom_data = HashMap::new();
-        user.custom_data.insert("boolKey".to_string(), serde_json::Value::Bool(false));
+        user.custom_data
+            .insert("boolKey".to_string(), serde_json::Value::Bool(false));
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2635,7 +2636,8 @@ mod tests {
 
         let mut user = create_test_user();
         user.custom_data = HashMap::new();
-        user.custom_data.insert("boolKey".to_string(), serde_json::Value::Bool(true));
+        user.custom_data
+            .insert("boolKey".to_string(), serde_json::Value::Bool(true));
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2894,7 +2896,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "foo".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "foo".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2918,7 +2923,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "Android".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "Android".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2938,7 +2946,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "fo".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "fo".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2958,7 +2969,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "foo".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "foo".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2982,7 +2996,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "Android".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "Android".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -3002,7 +3019,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "bar".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "bar".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -3102,7 +3122,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "Chrome".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "Chrome".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -3142,7 +3165,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "bar".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "bar".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -3202,7 +3228,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "bar".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "bar".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 

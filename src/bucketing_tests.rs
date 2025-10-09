@@ -154,7 +154,12 @@ mod tests {
         let client_custom_data = HashMap::new();
 
         let result = unsafe {
-            bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(
+                sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
         };
 
         assert!(
@@ -191,7 +196,12 @@ mod tests {
         );
 
         let result = unsafe {
-            bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(
+                sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
         };
 
         assert!(
@@ -225,7 +235,12 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(
+                    sdk_key.to_string(),
+                    user.clone(),
+                    client_custom_data,
+                )
+                .await
             };
 
             assert!(
@@ -260,7 +275,12 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(
+                    sdk_key.to_string(),
+                    user.clone(),
+                    client_custom_data,
+                )
+                .await
             };
 
             assert!(
@@ -310,7 +330,12 @@ mod tests {
         let client_custom_data = HashMap::new();
 
         let result = unsafe {
-            bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(
+                sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
         };
 
         assert!(
@@ -504,7 +529,12 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(
+                    sdk_key.to_string(),
+                    user.clone(),
+                    client_custom_data,
+                )
+                .await
             };
 
             assert!(
@@ -535,7 +565,12 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(
+                    sdk_key.to_string(),
+                    user.clone(),
+                    client_custom_data,
+                )
+                .await
             };
 
             if result.is_ok() {
@@ -616,8 +651,12 @@ mod tests {
         };
 
         let prod_result = unsafe {
-            bucketing::generate_bucketed_config(prod_sdk_key.to_string(), user.clone(), client_custom_data)
-                .await
+            bucketing::generate_bucketed_config(
+                prod_sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
         };
 
         assert!(test_result.is_ok(), "Test config bucketing failed");
@@ -638,8 +677,12 @@ mod tests {
         load_test_config_v2();
         setup_test_config_v2("test-sdk-key-1");
         let bucketing_result = unsafe {
-            bucketing::generate_bucketed_config("test-sdk-key-1".to_string(), user.clone(), HashMap::new())
-                .await
+            bucketing::generate_bucketed_config(
+                "test-sdk-key-1".to_string(),
+                user.clone(),
+                HashMap::new(),
+            )
+            .await
         };
         assert!(
             bucketing_result.is_ok(),

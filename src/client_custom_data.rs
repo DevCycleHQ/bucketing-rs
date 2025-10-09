@@ -9,7 +9,7 @@ pub(crate) static CLIENT_CUSTOM_DATA: Lazy<RwLock<HashMap<String, HashMap<String
 pub fn get_client_custom_data(sdk_key: String) -> HashMap<String, Value> {
     let data = CLIENT_CUSTOM_DATA.read().unwrap();
     let values = data.get(&sdk_key).cloned();
-    return values.unwrap()
+    return values.unwrap();
 }
 
 pub fn set_client_custom_data(sdk_key: String, data: HashMap<String, Value>) {
