@@ -3,27 +3,30 @@ mod tests {
     use crate::bucketing;
     use crate::config::*;
     use crate::configmanager;
-    use crate::platform_data;
-    use crate::platform_data::PlatformData;
+    use crate::platform_data::{self, PlatformData};
     use crate::user::*;
     use chrono::Utc;
-    use ctor::ctor;
     use serde_json;
     use serde_json::Value;
     use std::collections::HashMap;
+    use std::sync::Once;
 
-    #[ctor]
-    fn init_test_platform_data() {
-        let platform_data = PlatformData {
-            sdk_type: "server".to_string(),
-            sdk_version: "1.0.0".to_string(),
-            platform_version: "1.0.0".to_string(),
-            device_model: "test-device".to_string(),
-            platform: "test".to_string(),
-            hostname: "localhost".to_string(),
-        };
-        // Set platform data once before any tests run
-        let _ = platform_data::set_static_platform_data(platform_data);
+    const TEST_SDK_KEY: &str = "test-sdk-key";
+
+    static INIT: Once = Once::new();
+
+    fn initialize_test_platform_data() {
+        INIT.call_once(|| {
+            let platform_data = PlatformData {
+                sdk_type: "server".to_string(),
+                sdk_version: "1.0.0".to_string(),
+                platform_version: "1.0.0".to_string(),
+                device_model: "test-device".to_string(),
+                platform: "test".to_string(),
+                hostname: "localhost".to_string(),
+            };
+            platform_data::set_platform_data(TEST_SDK_KEY.to_string(), platform_data);
+        });
     }
 
     fn load_test_config() -> FullConfig {
@@ -82,6 +85,8 @@ mod tests {
     }
 
     fn create_test_user(user_id: &str) -> PopulatedUser {
+        initialize_test_platform_data();
+
         PopulatedUser {
             user_id: user_id.to_string(),
             email: format!("{}@test.com", user_id),
@@ -94,12 +99,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "test-device".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: platform_data::get_platform_data(),
+            platform_data: platform_data::get_platform_data(TEST_SDK_KEY).unwrap(),
             created_date: Utc::now(),
         }
     }
 
     fn create_test_user_v2(user_id: &str) -> PopulatedUser {
+        initialize_test_platform_data();
+
         let mut custom_data: HashMap<String, Value> = HashMap::new();
         custom_data.insert("favouriteNull".to_string(), Value::Null);
 
@@ -115,7 +122,7 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "test-device".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: platform_data::get_platform_data(),
+            platform_data: platform_data::get_platform_data(TEST_SDK_KEY).unwrap(),
             created_date: Utc::now(),
         }
     }

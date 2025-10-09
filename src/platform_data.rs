@@ -1,7 +1,11 @@
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
-static PLATFORM_DATA: OnceLock<PlatformData> = OnceLock::new();
+// Global platform data storage per SDK key
+pub(crate) static PLATFORM_DATA: Lazy<RwLock<HashMap<String, Arc<PlatformData>>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformData {
@@ -31,24 +35,17 @@ impl PlatformData {
     }
 }
 
-/// Sets platform data globally for this process.
-///
-/// This can only be called once successfully. Subsequent calls will return an error
-/// with the platform data you tried to set.
-///
-/// # Errors
-///
-/// Returns `Err(platform_data)` if platform data was already set.
-pub fn set_static_platform_data(platform_data: PlatformData) -> Result<(), PlatformData> {
-    PLATFORM_DATA.set(platform_data)
+pub fn get_platform_data(sdk_key: &str) -> Result<Arc<PlatformData>, String> {
+    let data = PLATFORM_DATA.read().unwrap();
+    data.get(sdk_key).cloned().ok_or_else(|| {
+        format!(
+            "Platform data not set for SDK key: {}. Call set_platform_data() first.",
+            sdk_key
+        )
+    })
 }
 
-/// Gets a reference to the global platform data.
-///
-/// If platform data was set via `set_static_platform_data()`, returns that.
-/// Otherwise, automatically generates and caches default platform data on first call.
-///
-/// Returns a reference to avoid unnecessary cloning on each access.
-pub fn get_platform_data() -> &'static PlatformData {
-    PLATFORM_DATA.get_or_init(|| PlatformData::generate())
+pub fn set_platform_data(sdk_key: String, platform_data: PlatformData) {
+    let mut data = PLATFORM_DATA.write().unwrap();
+    data.insert(sdk_key, Arc::new(platform_data));
 }

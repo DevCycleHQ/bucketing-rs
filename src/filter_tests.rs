@@ -2,12 +2,33 @@
 mod tests {
     use crate::constants;
     use crate::filters::*;
-    use crate::platform_data::PlatformData;
+    use crate::platform_data::{self, PlatformData};
     use crate::user::PopulatedUser;
     use chrono::Utc;
     use std::collections::HashMap;
+    use std::sync::Once;
+
+    const TEST_SDK_KEY: &str = "test-sdk-key";
+
+    static INIT: Once = Once::new();
+
+    fn initialize_test_platform_data() {
+        INIT.call_once(|| {
+            let platform_data = PlatformData {
+                sdk_type: "server".to_string(),
+                sdk_version: "1.0.0".to_string(),
+                platform_version: "test".to_string(),
+                device_model: "test-device".to_string(),
+                platform: "Rust".to_string(),
+                hostname: "localhost".to_string(),
+            };
+            platform_data::set_platform_data(TEST_SDK_KEY.to_string(), platform_data);
+        });
+    }
 
     fn create_test_user() -> PopulatedUser {
+        initialize_test_platform_data();
+
         PopulatedUser {
             user_id: "test_user_123".to_string(),
             email: "test@example.com".to_string(),
@@ -31,7 +52,7 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "iPhone 12".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: crate::platform_data::get_platform_data(),
+            platform_data: platform_data::get_platform_data(TEST_SDK_KEY).unwrap(),
             created_date: Utc::now(),
         }
     }
@@ -1272,7 +1293,7 @@ mod tests {
             _type: constants::TYPE_USER.to_string(),
             sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
             comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
-            values: vec![serde_json::Value::String("test".to_string())],
+            values: vec![serde_json::Value::String("Rust".to_string())],
             filters: vec![],
             operator: None,
             _audiences: vec![],
