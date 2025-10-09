@@ -36,7 +36,9 @@ impl PlatformData {
 }
 
 pub fn get_platform_data(sdk_key: &str) -> Result<Arc<PlatformData>, String> {
-    let data = PLATFORM_DATA.read().unwrap();
+    let data = PLATFORM_DATA
+        .read()
+        .expect("Failed to acquire read lock on PLATFORM_DATA: lock poisoned");
     data.get(sdk_key).cloned().ok_or_else(|| {
         format!(
             "Platform data not set for SDK key: {}. Call set_platform_data() first.",
@@ -46,6 +48,8 @@ pub fn get_platform_data(sdk_key: &str) -> Result<Arc<PlatformData>, String> {
 }
 
 pub fn set_platform_data(sdk_key: String, platform_data: PlatformData) {
-    let mut data = PLATFORM_DATA.write().unwrap();
+    let mut data = PLATFORM_DATA
+        .write()
+        .expect("Failed to acquire write lock on PLATFORM_DATA (lock may be poisoned)");
     data.insert(sdk_key, Arc::new(platform_data));
 }

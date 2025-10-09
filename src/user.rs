@@ -80,7 +80,7 @@ impl User {
             app_version: self.app_version.clone(),
             app_build: self.app_build.clone(),
             device_model: self.device_model.clone(),
-            last_seen_date: self.last_seen_date,
+            last_seen_date: self.last_seen_date.clone(),
             platform_data,
             created_date: create_date,
         }
