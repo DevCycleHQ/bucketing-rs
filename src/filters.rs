@@ -243,12 +243,42 @@ impl Filter {
                     serde_json::Value::String(filter_str),
                 ) = (user_value, filter_value)
                 {
-                    if user_str.contains(filter_str) {
+                    if !filter_str.is_empty() && user_str.contains(filter_str) {
                         return false; // If it contains any value, fail
                     }
                 }
             }
             return true; // Doesn't contain any of the values, pass
+        }
+
+        if comparator == constants::COMPARATOR_NOT_START_WITH {
+            for filter_value in &self.values {
+                if let (
+                    serde_json::Value::String(user_str),
+                    serde_json::Value::String(filter_str),
+                ) = (user_value, filter_value)
+                {
+                    if !filter_str.is_empty() && user_str.starts_with(filter_str) {
+                        return false; // If it starts with any value, fail
+                    }
+                }
+            }
+            return true; // Doesn't start with any of the values, pass
+        }
+
+        if comparator == constants::COMPARATOR_NOT_END_WITH {
+            for filter_value in &self.values {
+                if let (
+                    serde_json::Value::String(user_str),
+                    serde_json::Value::String(filter_str),
+                ) = (user_value, filter_value)
+                {
+                    if !filter_str.is_empty() && user_str.ends_with(filter_str) {
+                        return false; // If it ends with any value, fail
+                    }
+                }
+            }
+            return true; // Doesn't end with any of the values, pass
         }
 
         // For all other operators, ANY matching value passes
@@ -261,7 +291,29 @@ impl Filter {
                         serde_json::Value::String(filter_str),
                     ) = (user_value, filter_value)
                     {
-                        user_str.contains(filter_str)
+                        !filter_str.is_empty() && user_str.contains(filter_str)
+                    } else {
+                        false
+                    }
+                }
+                constants::COMPARATOR_START_WITH => {
+                    if let (
+                        serde_json::Value::String(user_str),
+                        serde_json::Value::String(filter_str),
+                    ) = (user_value, filter_value)
+                    {
+                        !filter_str.is_empty() && user_str.starts_with(filter_str)
+                    } else {
+                        false
+                    }
+                }
+                constants::COMPARATOR_END_WITH => {
+                    if let (
+                        serde_json::Value::String(user_str),
+                        serde_json::Value::String(filter_str),
+                    ) = (user_value, filter_value)
+                    {
+                        !filter_str.is_empty() && user_str.ends_with(filter_str)
                     } else {
                         false
                     }
@@ -328,18 +380,28 @@ impl Filter {
         user: &mut PopulatedUser,
         client_custom_data: &HashMap<String, serde_json::Value>,
     ) -> bool {
-        // For audience match, check if user matches any of the referenced audiences
+        let comparator = self.comparator.as_deref().unwrap_or("=");
+
+        // Check if user matches any of the referenced audiences
+        let mut matches_any = false;
         for audience_id in &self._audiences {
             if let Some(audience) = audiences.get(audience_id) {
                 if audience
                     .filters
                     .evaluate(audiences, user, client_custom_data)
                 {
-                    return true;
+                    matches_any = true;
+                    break;
                 }
             }
         }
-        false
+
+        // If comparator is NOT_EQUAL, invert the result
+        if comparator == constants::COMPARATOR_NOT_EQUAL || comparator == "!=" {
+            !matches_any
+        } else {
+            matches_any
+        }
     }
 
     fn evaluate_nested_filters(
@@ -350,7 +412,13 @@ impl Filter {
         client_custom_data: &HashMap<String, serde_json::Value>,
     ) -> bool {
         if self.filters.is_empty() {
-            return false;
+            return true
+            // // Standard boolean logic: empty AND is true (vacuous truth), empty OR is false
+            // return match self.operator.unwrap().clone().to_string() {
+            //     constants::OPERATOR_AND => true,
+            //     constants::OPERATOR_OR => false,
+            //     _ => false,
+            // };
         }
 
         match operator {
@@ -406,7 +474,12 @@ impl AudienceOperator {
         client_custom_data: &HashMap<String, serde_json::Value>,
     ) -> bool {
         if self.filters.is_empty() {
-            return true; // Empty filters pass by default
+            // Standard boolean logic: empty AND is true (vacuous truth), empty OR is false
+            return match self.operator.as_str() {
+                constants::OPERATOR_AND => true,
+                constants::OPERATOR_OR => false,
+                _ => false,
+            };
         }
 
         match self.operator.as_str() {
