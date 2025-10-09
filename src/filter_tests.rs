@@ -201,8 +201,7 @@ mod filter_tests {
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
-        // User has account_age of 365, which is > 300
-        // Note: This test also needs to be updated based on actual implementation
+        assert_eq!(true,filter_gt.evaluate(&audiences, &mut user, &client_custom_data));
     }
 
     #[test]
@@ -365,5 +364,807 @@ mod filter_tests {
         let client_custom_data = HashMap::new();
 
         assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    // Version Filter Tests - Converted from Go TestCheckVersionFilters
+
+    #[test]
+    fn test_version_equal_single_values() {
+        let test_cases = vec![
+            ("1", "1", true),
+            ("1.1", "1.1", true),
+            ("1.1.1", "1.1.1", true),
+            ("1.1.", "1.1", true),
+        ];
+
+        for (version, filter_value, expected) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("=".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            let result = filter.evaluate(&audiences, &mut user, &client_custom_data);
+            assert_eq!(
+                result, expected,
+                "Version {} = {} should be {}",
+                version, filter_value, expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_not_equal_single_values() {
+        let test_cases = vec![
+            ("", "2", false),
+            ("1", "2", false),
+            ("1.1", "1.2", false),
+            ("1.1", "1.1.1", false),
+            ("1.1.", "1.1.1", false),
+            ("1.1.1", "1.1", false),
+            ("1.1.1", "1.1.", false),
+            ("1.1.1", "1.2.3", false),
+        ];
+
+        for (version, filter_value, expected) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("=".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            let result = filter.evaluate(&audiences, &mut user, &client_custom_data);
+            assert_eq!(
+                result, expected,
+                "Version {} = {} should be {}",
+                version, filter_value, expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_not_equal_comparator_false() {
+        let test_cases = vec![
+            ("1", "1"),
+            ("1.1", "1.1"),
+            ("1.1.1", "1.1.1"),
+            ("1.1.", "1.1"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("!=".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                !filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} != {} should be false",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_not_equal_comparator_true() {
+        let test_cases = vec![
+            ("1", "2"),
+            ("1.1", "1.2"),
+            ("1.1", "1.1.1"),
+            ("1.1.", "1.1.1"),
+            ("1.1.1", "1.1"),
+            ("1.1.1", "1.1."),
+            ("1.1.1", "1.2.3"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("!=".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} != {} should be true",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_greater_than_false() {
+        let test_cases = vec![
+            ("", "1"),
+            ("1", "1"),
+            ("1.1", "1.1"),
+            ("1.1.1", "1.1.1"),
+            ("1.1.", "1.1"),
+            ("1", "2"),
+            ("1.1", "1.2"),
+            ("1.1", "1.1.1"),
+            ("1.1.", "1.1.1"),
+            ("1.1.1", "1.2.3"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some(">".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                !filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} > {} should be false",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_greater_than_true() {
+        let test_cases = vec![
+            ("2", "1"),
+            ("1.2", "1.1"),
+            ("2.1", "1.1"),
+            ("1.2.1", "1.2"),
+            ("1.2.", "1.1"),
+            ("1.2.1", "1.1.1"),
+            ("1.2.2", "1.2"),
+            ("1.2.2", "1.2.1"),
+            ("4.8.241", "4.8"),
+            ("4.8.241.2", "4"),
+            ("4.8.241.2", "4.8"),
+            ("4.8.241.2", "4.8.2"),
+            ("4.8.241.2", "4.8.241.0"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some(">".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} > {} should be true",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_greater_than_or_equal_false() {
+        let test_cases = vec![
+            ("", "2"),
+            ("1", "2"),
+            ("1.1", "1.2"),
+            ("1.1", "1.1.1"),
+            ("1.1.", "1.1.1"),
+            ("1.1.1", "1.2.3"),
+            ("4.8.241", "4.9"),
+            ("4.8.241.2", "5"),
+            ("4.8.241.2", "4.9"),
+            ("4.8.241.2", "4.8.242"),
+            ("4.8.241.2", "4.8.241.5"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some(">=".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                !filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} >= {} should be false",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_greater_than_or_equal_true() {
+        let test_cases = vec![
+            ("1", "1"),
+            ("1.1", "1.1"),
+            ("1.1.1", "1.1.1"),
+            ("1.1.", "1.1"),
+            ("2", "1"),
+            ("1.2", "1.1"),
+            ("2.1", "1.1"),
+            ("1.2.1", "1.2"),
+            ("1.2.", "1.1"),
+            ("1.2.1", "1.1.1"),
+            ("1.2.2", "1.2"),
+            ("1.2.2", "1.2.1"),
+            ("4.8.241.2", "4"),
+            ("4.8.241.2", "4.8"),
+            ("4.8.241.2", "4.8.2"),
+            ("4.8.241.2", "4.8.241.0"),
+            ("4.8.241.2", "4.8.241.2"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some(">=".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} >= {} should be true",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_with_extra_characters() {
+        let test_cases = vec![
+            ("1.2.2", "v1.2.1-2v3asda", ">=", true),
+            ("1.2.2", "v1.2.1-va1sda", ">", true),
+            ("1.2.1", "v1.2.1-vasd32a", ">=", true),
+            ("1.2.1", "v1.2.1-vasda", "=", false),
+            ("v1.2.1-va21sda", "v1.2.1-va13sda", "=", false),
+            ("1.2.0", "v1.2.1-vas1da", ">=", false),
+            ("1.2.1", "v1.2.1- va34sda", "<=", true),
+            ("1.2.0", "v1.2.1-vas3da", "<=", true),
+        ];
+
+        for (version, filter_value, comparator, expected) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some(comparator.to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert_eq!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                expected,
+                "Version {} {} {} should be {}",
+                version,
+                comparator,
+                filter_value,
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_less_than_true() {
+        let test_cases = vec![
+            ("1", "2"),
+            ("1.1", "1.2"),
+            ("1.1", "1.1.1"),
+            ("1.1.", "1.1.1"),
+            ("1.1.1", "1.2.3"),
+            ("4.8.241.2", "5"),
+            ("4.8.241.2", "4.9"),
+            ("4.8.241.2", "4.8.242"),
+            ("4.8.241.2", "4.8.241.5"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("<".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} < {} should be true",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_less_than_false() {
+        let test_cases = vec![
+            ("", "1"),
+            ("1", "1"),
+            ("1.1", "1.1"),
+            ("1.1.1", "1.1.1"),
+            ("1.1.", "1.1"),
+            ("2", "1"),
+            ("1.2", "1.1"),
+            ("2.1", "1.1"),
+            ("1.2.1", "1.2"),
+            ("1.2.", "1.1"),
+            ("1.2.1", "1.1.1"),
+            ("1.2.2", "1.2"),
+            ("1.2.2", "1.2."),
+            ("1.2.2", "1.2.1"),
+            ("4.8.241.2", "4"),
+            ("4.8.241.2", "4.8"),
+            ("4.8.241.2", "4.8.241"),
+            ("4.8.241.2", "4.8.241.0"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("<".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                !filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} < {} should be false",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_less_than_or_equal_true() {
+        let test_cases = vec![
+            ("1", "1"),
+            ("1.1", "1.1"),
+            ("1.1.1", "1.1.1"),
+            ("1.1.", "1.1"),
+            ("1", "2"),
+            ("1.1", "1.2"),
+            ("1.1", "1.1.1"),
+            ("1.1.", "1.1.1"),
+            ("1.1.1", "1.2.3"),
+            ("4.8.241.2", "4.8.241.2"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("<=".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} <= {} should be true",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_less_than_or_equal_false() {
+        let test_cases = vec![
+            ("", "1"),
+            ("2", "1"),
+            ("1.2", "1.1"),
+            ("2.1", "1.1"),
+            ("1.2.1", "1.2"),
+            ("1.2.", "1.1"),
+            ("1.2.1", "1.1.1"),
+            ("1.2.2", "1.2"),
+            ("1.2.2", "1.2."),
+            ("1.2.2", "1.2.1"),
+            ("4.8.241.2", "4.8.241"),
+        ];
+
+        for (version, filter_value) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("<=".to_string()),
+                values: vec![serde_json::Value::String(filter_value.to_string())],
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                !filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} <= {} should be false",
+                version,
+                filter_value
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_equal_array_any_match() {
+        let test_cases = vec![
+            ("1", vec!["1", "1.1"], true),
+            ("1.1", vec!["1", "1.1"], true),
+            ("1.1", vec!["1.1", ""], true),
+        ];
+
+        for (version, filter_values, expected) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("=".to_string()),
+                values: filter_values
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.to_string()))
+                    .collect(),
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert_eq!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                expected,
+                "Version {} should match any of {:?}",
+                version,
+                filter_values
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_equal_array_no_match() {
+        let test_cases = vec![
+            ("1", vec!["2", "1.1"]),
+            ("1.1", vec!["1.2", "1"]),
+        ];
+
+        for (version, filter_values) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("=".to_string()),
+                values: filter_values
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.to_string()))
+                    .collect(),
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert!(
+                !filter.evaluate(&audiences, &mut user, &client_custom_data),
+                "Version {} should not match any of {:?}",
+                version,
+                filter_values
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_not_equal_array() {
+        let test_cases = vec![
+            ("1", vec!["2", "1"], false),
+            ("1.1", vec!["1.2", "1.1"], false),
+            ("1.1", vec!["1.1.1", "1.2"], true),
+            ("1.1.", vec!["1.1.1", "1"], true),
+        ];
+
+        for (version, filter_values, expected) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("!=".to_string()),
+                values: filter_values
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.to_string()))
+                    .collect(),
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert_eq!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                expected,
+                "Version {} != {:?} should be {}",
+                version,
+                filter_values,
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_greater_than_array() {
+        let test_cases = vec![
+            ("1", vec!["1", "1"], false),
+            ("1.1", vec!["1.1", "1.1.", "1.1"], false),
+            ("1", vec!["2"], false),
+            ("1.1", vec!["1.1.0"], false),
+            ("2", vec!["1", "2.0"], true),
+            ("1.2.1", vec!["1.2", "1.2"], true),
+            ("1.2.", vec!["1.1", "1.9."], true),
+        ];
+
+        for (version, filter_values, expected) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some(">".to_string()),
+                values: filter_values
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.to_string()))
+                    .collect(),
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert_eq!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                expected,
+                "Version {} > {:?} should be {}",
+                version,
+                filter_values,
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_greater_equal_array() {
+        let test_cases = vec![
+            ("1", vec!["2", "1.2"], false),
+            ("1.1", vec!["1.2"], false),
+            ("1.1", vec!["1.1.1", "1.2"], false),
+            ("1", vec!["1", "1.1"], true),
+            ("1.1", vec!["1.1", "1"], true),
+            ("1.1.1", vec!["1.2", "1.1.1"], true),
+            ("1.1.", vec!["1.1"], true),
+            ("2", vec!["1", "3"], true),
+        ];
+
+        for (version, filter_values, expected) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some(">=".to_string()),
+                values: filter_values
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.to_string()))
+                    .collect(),
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert_eq!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                expected,
+                "Version {} >= {:?} should be {}",
+                version,
+                filter_values,
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_less_than_array() {
+        let test_cases = vec![
+            ("1", vec!["2", "1"], true),
+            ("1.1", vec!["1.2", "1.5"], true),
+            ("1.1.", vec!["1.1.1"], true),
+            ("1", vec!["1", "1.0"], false),
+            ("1.1.", vec!["1.1", "1.1.0"], false),
+        ];
+
+        for (version, filter_values, expected) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("<".to_string()),
+                values: filter_values
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.to_string()))
+                    .collect(),
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert_eq!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                expected,
+                "Version {} < {:?} should be {}",
+                version,
+                filter_values,
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_version_less_equal_array() {
+        let test_cases = vec![
+            ("1", vec!["1", "5"], true),
+            ("1.1", vec!["1.1", "1.1."], true),
+            ("1.1.", vec!["1.1.1", "1.1."], true),
+            ("2", vec!["1", "1.9"], false),
+            ("1.2.1", vec!["1.2", "1.2"], false),
+            ("1.2.", vec!["1.1", "1.1.9"], false),
+        ];
+
+        for (version, filter_values, expected) in test_cases {
+            let filter = Filter {
+                _type: constants::TYPE_USER.to_string(),
+                sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
+                comparator: Some("<=".to_string()),
+                values: filter_values
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.to_string()))
+                    .collect(),
+                filters: vec![],
+                operator: None,
+                _audiences: vec![],
+            };
+
+            let mut user = create_test_user();
+            user.app_version = version.to_string();
+            let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+            let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+            assert_eq!(
+                filter.evaluate(&audiences, &mut user, &client_custom_data),
+                expected,
+                "Version {} <= {:?} should be {}",
+                version,
+                filter_values,
+                expected
+            );
+        }
     }
 }

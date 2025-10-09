@@ -2,6 +2,8 @@ use crate::constants;
 use crate::user::PopulatedUser;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use regex::Regex;
+use semver::Version;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
@@ -139,7 +141,62 @@ impl Filter {
         }
     }
 
+    fn compare_version_strings(&self, user_version: &str, comparator: &str) -> bool {
+        // For != operator, we need ALL values to NOT match (return true if none match)
+        if comparator == constants::COMPARATOR_NOT_EQUAL || comparator == "!=" {
+            for filter_value in &self.values {
+                if let serde_json::Value::String(filter_version) = filter_value {
+                    let result = version_compare_equality(user_version, filter_version);
+                    // If any value matches, return false
+                    if result {
+                        return false;
+                    }
+                }
+            }
+            // If no values matched, return true
+            return true;
+        }
+
+        // For all other operators, return true if ANY value matches
+        for filter_value in &self.values {
+            if let serde_json::Value::String(filter_version) = filter_value {
+                let matches = match comparator {
+                    constants::COMPARATOR_EQUAL | "=" => {
+                        version_compare_equality(user_version, filter_version)
+                    }
+                    _ => {
+                        let result = version_compare(user_version, filter_version);
+                        match comparator {
+                            constants::COMPARATOR_GREATER | ">" => result > 0.0,
+                            constants::COMPARATOR_GREATER_EQUAL | ">=" => result >= 0.0,
+                            constants::COMPARATOR_LESS | "<" => result < 0.0,
+                            constants::COMPARATOR_LESS_EQUAL | "<=" => result <= 0.0,
+                            _ => false,
+                        }
+                    }
+                };
+
+                if matches {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     fn compare_values(&self, user_value: &serde_json::Value, comparator: &str) -> bool {
+        // Check if this is a version comparison
+        let is_version_field = matches!(
+            self.sub_type.as_deref(),
+            Some(constants::SUB_TYPE_APP_VERSION) | Some(constants::SUB_TYPE_PLATFORM_VERSION)
+        );
+
+        if is_version_field {
+            if let serde_json::Value::String(user_str) = user_value {
+                return self.compare_version_strings(user_str, comparator);
+            }
+        }
+
         for filter_value in &self.values {
             let matches = match comparator {
                 constants::COMPARATOR_EQUAL | "=" => user_value == filter_value,
@@ -467,4 +524,165 @@ trait FilterTrait {
     fn get_sub_type(&self) -> FilterSubType;
     fn get_comparator(&self) -> &String;
     fn get_operator(&self) -> &String;
+}
+
+fn version_compare(v1: &str, v2: &str) -> f64 {
+    // Extract only the first continuous version string (e.g., "1.2.3" from "v1.2.3-beta")
+    let extract_version = |s: &str| -> Vec<u32> {
+        let re = Regex::new(r"(\d+\.)*\d+").unwrap();
+        if let Some(mat) = re.find(s) {
+            mat.as_str()
+                .split('.')
+                .filter_map(|p| p.parse::<u32>().ok())
+                .collect()
+        } else {
+            Vec::new()
+        }
+    };
+
+    let v1_parts = extract_version(v1);
+    let v2_parts = extract_version(v2);
+
+    if v1_parts.is_empty() && v2_parts.is_empty() {
+        return 0.0;
+    }
+
+    if v1_parts.is_empty() {
+        return f64::NAN;
+    }
+
+    if v2_parts.is_empty() {
+        return f64::NAN;
+    }
+
+    // Try to use semver for standard 3-part versions (or shorter)
+    if v1_parts.len() <= 3 && v2_parts.len() <= 3 {
+        let normalize_to_semver = |parts: &[u32]| -> String {
+            match parts.len() {
+                1 => format!("{}.0.0", parts[0]),
+                2 => format!("{}.{}.0", parts[0], parts[1]),
+                3 => format!("{}.{}.{}", parts[0], parts[1], parts[2]),
+                _ => String::new(),
+            }
+        };
+
+        let v1_semver_str = normalize_to_semver(&v1_parts);
+        let v2_semver_str = normalize_to_semver(&v2_parts);
+
+        if let (Ok(v1_semver), Ok(v2_semver)) = (
+            Version::parse(&v1_semver_str),
+            Version::parse(&v2_semver_str),
+        ) {
+            return if v1_semver > v2_semver {
+                1.0
+            } else if v1_semver < v2_semver {
+                -1.0
+            } else {
+                0.0
+            };
+        }
+    }
+
+    // Fall back to custom comparison for 4+ part versions
+    let min_len = v1_parts.len().min(v2_parts.len());
+
+    for i in 0..min_len {
+        let v1_part = v1_parts[i];
+        let v2_part = v2_parts[i];
+
+        if v1_part > v2_part {
+            return 1.0;
+        } else if v1_part < v2_part {
+            return -1.0;
+        }
+    }
+
+    // If all compared parts are equal, check if one version has more parts
+    if v1_parts.len() > v2_parts.len() {
+        // Check if remaining v1 parts are all zeros
+        for i in min_len..v1_parts.len() {
+            if v1_parts[i] > 0 {
+                return 1.0;
+            }
+        }
+    } else if v2_parts.len() > v1_parts.len() {
+        // Check if remaining v2 parts are all zeros
+        for i in min_len..v2_parts.len() {
+            if v2_parts[i] > 0 {
+                return -1.0;
+            }
+        }
+    }
+
+    0.0
+}
+
+fn version_compare_equality(v1: &str, v2: &str) -> bool {
+    // For equality, extract the matched portion to see if strings are truly equivalent
+    let re = Regex::new(r"(\d+\.)*\d+").unwrap();
+
+    let v1_match = re.find(v1);
+    let v2_match = re.find(v2);
+
+    match (v1_match, v2_match) {
+        (Some(m1), Some(m2)) => {
+            let v1_version_str = m1.as_str();
+            let v2_version_str = m2.as_str();
+
+            // Parse the version parts
+            let v1_parts: Vec<u32> = v1_version_str
+                .split('.')
+                .filter_map(|p| p.parse::<u32>().ok())
+                .collect();
+
+            let v2_parts: Vec<u32> = v2_version_str
+                .split('.')
+                .filter_map(|p| p.parse::<u32>().ok())
+                .collect();
+
+            // For equality, versions must have the same number of parts
+            if v1_parts.len() != v2_parts.len() {
+                return false;
+            }
+
+            // Check if numeric parts are equal
+            if v1_parts != v2_parts {
+                return false;
+            }
+
+            // Check for prefix/suffix, but ignore trailing dots/periods
+            let v1_has_prefix = m1.start() > 0;
+            let v2_has_prefix = m2.start() > 0;
+
+            // For suffix, ignore trailing dots and whitespace
+            let v1_suffix = &v1[m1.end()..].trim_start_matches('.');
+            let v2_suffix = &v2[m2.end()..].trim_start_matches('.');
+            let v1_has_suffix = !v1_suffix.is_empty();
+            let v2_has_suffix = !v2_suffix.is_empty();
+
+            // If one has prefix/suffix and other doesn't, they're not equal
+            if v1_has_prefix != v2_has_prefix || v1_has_suffix != v2_has_suffix {
+                return false;
+            }
+
+            // If both have suffixes (after ignoring trailing dots), they must be identical
+            if v1_has_suffix && v2_has_suffix {
+                if v1_suffix != v2_suffix {
+                    return false;
+                }
+            }
+
+            // If both have prefixes, they must be identical for equality
+            if v1_has_prefix && v2_has_prefix {
+                let v1_prefix = &v1[..m1.start()];
+                let v2_prefix = &v2[..m2.start()];
+                if v1_prefix != v2_prefix {
+                    return false;
+                }
+            }
+
+            true
+        }
+        _ => false,
+    }
 }
