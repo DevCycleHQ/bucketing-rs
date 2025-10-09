@@ -271,8 +271,7 @@ impl EventQueue {
             client_custom_data.clone(),
         );
         let bucketed_config =
-            generate_bucketed_config(&self.sdk_key.clone(), populated_user, client_custom_data)
-                .await;
+            generate_bucketed_config(&self.sdk_key, populated_user, client_custom_data).await;
         if bucketed_config.is_err() {
             return Err(bucketed_config.err().unwrap());
         }
