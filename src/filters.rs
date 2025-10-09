@@ -81,21 +81,50 @@ impl Filter {
         user: &mut PopulatedUser,
         client_custom_data: &HashMap<String, serde_json::Value>,
     ) -> bool {
-        if self.values.is_empty() {
-            return false;
-        }
-
         let sub_type = match &self.sub_type {
             Some(st) => st.as_str(),
             None => return false,
         };
 
         let comparator = self.comparator.as_deref().unwrap_or("=");
+
+        // Special handling for EXIST and NOT_EXIST comparators
+        if comparator == constants::COMPARATOR_EXIST {
+            let user_value = self.get_user_value(sub_type, user, client_custom_data);
+            return match user_value {
+                Some(serde_json::Value::String(s)) if s.is_empty() => false,
+                Some(_) => true,
+                None => false,
+            };
+        }
+
+        if comparator == constants::COMPARATOR_NOT_EXIST {
+            let user_value = self.get_user_value(sub_type, user, client_custom_data);
+            return match user_value {
+                Some(serde_json::Value::String(s)) if s.is_empty() => true,
+                Some(_) => false,
+                None => true,
+            };
+        }
+
+        // For custom data filters, we need at least one value (the key)
+        if sub_type == constants::SUB_TYPE_CUSTOM_DATA && self.values.is_empty() {
+            return false;
+        }
+
+        // For non-custom data filters with empty values
+        if sub_type != constants::SUB_TYPE_CUSTOM_DATA && self.values.is_empty() {
+            return false;
+        }
+
         let user_value = self.get_user_value(sub_type, user, client_custom_data);
 
         match user_value {
             Some(value) => self.compare_values(&value, comparator),
-            None => comparator == constants::COMPARATOR_NOT_EXIST,
+            None => {
+                // When user value doesn't exist (None), != should return true
+                comparator == constants::COMPARATOR_NOT_EQUAL
+            }
         }
     }
 
@@ -197,10 +226,35 @@ impl Filter {
             }
         }
 
+        // Special handling for != and !contain - ALL values must NOT match
+        if comparator == constants::COMPARATOR_NOT_EQUAL || comparator == "!=" {
+            for filter_value in &self.values {
+                if user_value == filter_value {
+                    return false; // If any value matches, fail
+                }
+            }
+            return true; // All values didn't match, pass
+        }
+
+        if comparator == constants::COMPARATOR_NOT_CONTAIN {
+            for filter_value in &self.values {
+                if let (
+                    serde_json::Value::String(user_str),
+                    serde_json::Value::String(filter_str),
+                ) = (user_value, filter_value)
+                {
+                    if user_str.contains(filter_str) {
+                        return false; // If it contains any value, fail
+                    }
+                }
+            }
+            return true; // Doesn't contain any of the values, pass
+        }
+
+        // For all other operators, ANY matching value passes
         for filter_value in &self.values {
             let matches = match comparator {
                 constants::COMPARATOR_EQUAL | "=" => user_value == filter_value,
-                constants::COMPARATOR_NOT_EQUAL | "!=" => user_value != filter_value,
                 constants::COMPARATOR_CONTAIN => {
                     if let (
                         serde_json::Value::String(user_str),
@@ -210,17 +264,6 @@ impl Filter {
                         user_str.contains(filter_str)
                     } else {
                         false
-                    }
-                }
-                constants::COMPARATOR_NOT_CONTAIN => {
-                    if let (
-                        serde_json::Value::String(user_str),
-                        serde_json::Value::String(filter_str),
-                    ) = (user_value, filter_value)
-                    {
-                        !user_str.contains(filter_str)
-                    } else {
-                        true
                     }
                 }
                 constants::COMPARATOR_GREATER => {
