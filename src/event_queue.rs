@@ -3,11 +3,8 @@ use crate::config::ConfigBody;
 use crate::errors::DevCycleError;
 use crate::event::*;
 use crate::generate_bucketed_config;
-use crate::platform_data::PlatformData;
 use crate::user::{PopulatedUser, User};
 use std::collections::HashMap;
-use std::hash::Hash;
-use std::ops::Add;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
@@ -58,16 +55,11 @@ pub(crate) struct EventQueue {
     pub(crate) events_flushed: i64,
     pub(crate) events_dropped: i64,
     pub(crate) events_reported: i64,
-    pub(crate) platform_data: *const PlatformData,
     pub(crate) options: crate::event_queue::EventQueueOptions,
 }
 
 impl EventQueue {
-    pub fn new(
-        sdk_key: String,
-        event_queue_options: EventQueueOptions,
-        platform_data: *const PlatformData,
-    ) -> Self {
+    pub fn new(sdk_key: String, event_queue_options: EventQueueOptions) -> Self {
         let (agg_event_queue_raw_tx, agg_event_queue_raw_rx) = mpsc::channel(10000);
         let (user_event_queue_raw_tx, user_event_queue_raw_rx) = mpsc::channel(10000);
         Self {
@@ -83,7 +75,6 @@ impl EventQueue {
             events_flushed: 0,
             events_dropped: 0,
             events_reported: 0,
-            platform_data,
             options: event_queue_options,
         }
     }
@@ -271,10 +262,12 @@ impl EventQueue {
         mut event: UserEventData,
     ) -> Result<bool, DevCycleError> {
         let client_custom_data = get_client_custom_data(self.sdk_key.clone());
+        let platform_data = crate::platform_data::get_platform_data(&self.sdk_key)
+            .map_err(|e| DevCycleError::new(&e))?;
 
         let populated_user = PopulatedUser::new(
             event.user.clone(),
-            (*self.platform_data).clone(),
+            platform_data,
             client_custom_data.clone(),
         );
         let bucketed_config =

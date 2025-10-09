@@ -167,7 +167,7 @@ impl PopulatedUser {
     }
     pub fn new(
         user: User,
-        platform_data: PlatformData,
+        platform_data: Arc<PlatformData>,
         client_custom_data: HashMap<String, serde_json::Value>,
     ) -> PopulatedUser {
         let mut popuser = PopulatedUser {
@@ -182,7 +182,7 @@ impl PopulatedUser {
             app_build: user.app_build.clone(),
             device_model: user.device_model.clone(),
             last_seen_date: user.last_seen_date.clone(),
-            platform_data: Arc::new(platform_data),
+            platform_data,
             created_date: Utc::now(),
         };
         for (k, v) in client_custom_data {
