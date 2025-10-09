@@ -1,17 +1,14 @@
 use crate::client_custom_data::get_client_custom_data;
 use crate::config::ConfigBody;
 use crate::errors::DevCycleError;
+use crate::event::*;
 use crate::generate_bucketed_config;
 use crate::platform_data::PlatformData;
 use crate::user::{PopulatedUser, User};
-use crate::event::*;
 use std::collections::HashMap;
-use std::hash::Hash;
-use std::ops::Add;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
-
-
 
 pub(crate) struct EventQueueOptions {
     pub flush_events_interval: Duration,
@@ -49,6 +46,7 @@ impl Default for EventQueueOptions {
 }
 pub(crate) struct EventQueue {
     pub(crate) sdk_key: String,
+    pub(crate) platform_data: Arc<PlatformData>,
     pub(crate) agg_event_queue_raw_tx: mpsc::Sender<crate::event::AggEventQueueRawMessage>,
     pub(crate) agg_event_queue_raw_rx: mpsc::Receiver<crate::event::AggEventQueueRawMessage>,
     pub(crate) user_event_queue_raw_tx: mpsc::Sender<String>,
@@ -60,7 +58,6 @@ pub(crate) struct EventQueue {
     pub(crate) events_flushed: i64,
     pub(crate) events_dropped: i64,
     pub(crate) events_reported: i64,
-    pub(crate) platform_data: *const PlatformData,
     pub(crate) options: crate::event_queue::EventQueueOptions,
 }
 
@@ -68,12 +65,14 @@ impl EventQueue {
     pub fn new(
         sdk_key: String,
         event_queue_options: EventQueueOptions,
-        platform_data: *const PlatformData,
-    ) -> Self {
+    ) -> Result<Self, DevCycleError> {
         let (agg_event_queue_raw_tx, agg_event_queue_raw_rx) = mpsc::channel(10000);
         let (user_event_queue_raw_tx, user_event_queue_raw_rx) = mpsc::channel(10000);
-        Self {
+        let platform_data = crate::platform_data::get_platform_data(&sdk_key)
+            .map_err(|e| DevCycleError::new(&e))?;
+        Ok(Self {
             sdk_key,
+            platform_data,
             agg_event_queue_raw_tx,
             user_event_queue_raw_tx,
             agg_event_queue_raw_rx,
@@ -85,9 +84,8 @@ impl EventQueue {
             events_flushed: 0,
             events_dropped: 0,
             events_reported: 0,
-            platform_data,
             options: event_queue_options,
-        }
+        })
     }
 
     pub async fn queue_variable_evaluated_event(
@@ -159,7 +157,7 @@ impl EventQueue {
             .await;
 
         if success.is_err() {
-            self.events_dropped +=1 ;
+            self.events_dropped += 1;
         }
         return Ok(true);
     }
@@ -268,17 +266,19 @@ impl EventQueue {
         }
     }
 
-    async unsafe fn process_user_events(&mut self, mut event: UserEventData) -> Result<bool, DevCycleError> {
+    async unsafe fn process_user_events(
+        &mut self,
+        mut event: UserEventData,
+    ) -> Result<bool, DevCycleError> {
         let client_custom_data = get_client_custom_data(self.sdk_key.clone());
 
-        let populated_user =
-            PopulatedUser::new(event.user.clone(), (*self.platform_data).clone(), client_custom_data.clone());
-        let bucketed_config = generate_bucketed_config(
-            self.sdk_key.clone(),
-            populated_user,
-            client_custom_data,
-        )
-        .await;
+        let populated_user = PopulatedUser::new(
+            event.user.clone(),
+            self.platform_data.clone(),
+            client_custom_data.clone(),
+        );
+        let bucketed_config =
+            generate_bucketed_config(&self.sdk_key, populated_user, client_custom_data).await;
         if bucketed_config.is_err() {
             return Err(bucketed_config.err().unwrap());
         }

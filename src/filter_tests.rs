@@ -2,12 +2,33 @@
 mod tests {
     use crate::constants;
     use crate::filters::*;
-    use crate::platform_data::PlatformData;
+    use crate::platform_data::{self, PlatformData};
     use crate::user::PopulatedUser;
     use chrono::Utc;
     use std::collections::HashMap;
+    use std::sync::{Arc, Once};
+
+    const TEST_SDK_KEY: &str = "test-sdk-key";
+
+    static INIT: Once = Once::new();
+
+    fn initialize_test_platform_data() {
+        INIT.call_once(|| {
+            let platform_data = PlatformData {
+                sdk_type: "server".to_string(),
+                sdk_version: "1.0.0".to_string(),
+                platform_version: "test".to_string(),
+                device_model: "test-device".to_string(),
+                platform: "Rust".to_string(),
+                hostname: "localhost".to_string(),
+            };
+            platform_data::set_platform_data(TEST_SDK_KEY.to_string(), platform_data);
+        });
+    }
 
     fn create_test_user() -> PopulatedUser {
+        initialize_test_platform_data();
+
         PopulatedUser {
             user_id: "test_user_123".to_string(),
             email: "test@example.com".to_string(),
@@ -31,14 +52,7 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "iPhone 12".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
-                sdk_type: "mobile".to_string(),
-                sdk_version: "1.0.0".to_string(),
-                platform_version: "iOS 15.0".to_string(),
-                device_model: "iPhone 12".to_string(),
-                platform: "iOS".to_string(),
-                hostname: "api.example.com".to_string(),
-            },
+            platform_data: platform_data::get_platform_data(TEST_SDK_KEY).unwrap(),
             created_date: Utc::now(),
         }
     }
@@ -56,14 +70,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "mobile".to_string(),
                 sdk_version: "1.0.0".to_string(),
                 platform_version: "10.3.1".to_string(),
                 device_model: "".to_string(),
                 platform: "iOS".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         }
     }
@@ -292,14 +306,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "".to_string(),
                 device_model: "".to_string(),
                 platform: "Android TV".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -854,14 +868,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "mobile".to_string(),
                 sdk_version: "1.0.0".to_string(),
                 platform_version: "2.0.0".to_string(),
                 device_model: "".to_string(),
                 platform: "iOS".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -915,14 +929,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "mobile".to_string(),
                 sdk_version: "1.0.0".to_string(),
                 platform_version: "2.0.0".to_string(),
                 device_model: "".to_string(),
                 platform: "iOS".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1033,14 +1047,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "".to_string(),
                 device_model: "".to_string(),
                 platform: "".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1064,14 +1078,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "".to_string(),
                 device_model: "".to_string(),
                 platform: "".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1133,14 +1147,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "".to_string(),
                 device_model: "".to_string(),
                 platform: "".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1148,19 +1162,84 @@ mod tests {
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
         let test_cases = vec![
-            ("User email equals filter", constants::COMPARATOR_EQUAL, vec!["test@devcycle.com"], true),
-            ("User email does not equal filter", constants::COMPARATOR_EQUAL, vec!["someone.else@devcycle.com"], false),
-            ("User email in filter set", constants::COMPARATOR_CONTAIN, vec!["@gmail.com", "@devcycle.com", "@hotmail.com"], true),
-            ("User email starts with filter", constants::COMPARATOR_START_WITH, vec!["test"], true),
-            ("User email ends with filter", constants::COMPARATOR_END_WITH, vec!["@devcycle.com"], true),
-            ("User email does not start with filter", constants::COMPARATOR_NOT_START_WITH, vec!["user"], true),
-            ("User email does not end with filter", constants::COMPARATOR_NOT_END_WITH, vec!["@devcycle.io"], true),
-            ("User email does start with filter with empty value", constants::COMPARATOR_START_WITH, vec![""], false),
-            ("User email does end with filter with empty value", constants::COMPARATOR_END_WITH, vec![""], false),
-            ("User email does contain filter with empty value", constants::COMPARATOR_CONTAIN, vec![""], false),
-            ("User email does not start with filter with empty value", constants::COMPARATOR_NOT_START_WITH, vec![""], true),
-            ("User email does not end with filter with empty value", constants::COMPARATOR_NOT_END_WITH, vec![""], true),
-            ("User email does not contain filter with empty value", constants::COMPARATOR_NOT_CONTAIN, vec![""], true),
+            (
+                "User email equals filter",
+                constants::COMPARATOR_EQUAL,
+                vec!["test@devcycle.com"],
+                true,
+            ),
+            (
+                "User email does not equal filter",
+                constants::COMPARATOR_EQUAL,
+                vec!["someone.else@devcycle.com"],
+                false,
+            ),
+            (
+                "User email in filter set",
+                constants::COMPARATOR_CONTAIN,
+                vec!["@gmail.com", "@devcycle.com", "@hotmail.com"],
+                true,
+            ),
+            (
+                "User email starts with filter",
+                constants::COMPARATOR_START_WITH,
+                vec!["test"],
+                true,
+            ),
+            (
+                "User email ends with filter",
+                constants::COMPARATOR_END_WITH,
+                vec!["@devcycle.com"],
+                true,
+            ),
+            (
+                "User email does not start with filter",
+                constants::COMPARATOR_NOT_START_WITH,
+                vec!["user"],
+                true,
+            ),
+            (
+                "User email does not end with filter",
+                constants::COMPARATOR_NOT_END_WITH,
+                vec!["@devcycle.io"],
+                true,
+            ),
+            (
+                "User email does start with filter with empty value",
+                constants::COMPARATOR_START_WITH,
+                vec![""],
+                false,
+            ),
+            (
+                "User email does end with filter with empty value",
+                constants::COMPARATOR_END_WITH,
+                vec![""],
+                false,
+            ),
+            (
+                "User email does contain filter with empty value",
+                constants::COMPARATOR_CONTAIN,
+                vec![""],
+                false,
+            ),
+            (
+                "User email does not start with filter with empty value",
+                constants::COMPARATOR_NOT_START_WITH,
+                vec![""],
+                true,
+            ),
+            (
+                "User email does not end with filter with empty value",
+                constants::COMPARATOR_NOT_END_WITH,
+                vec![""],
+                true,
+            ),
+            (
+                "User email does not contain filter with empty value",
+                constants::COMPARATOR_NOT_CONTAIN,
+                vec![""],
+                true,
+            ),
         ];
 
         for (name, comparator, values, expected) in test_cases {
@@ -1196,14 +1275,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: PlatformData {
+            platform_data: Arc::new(PlatformData {
                 sdk_type: "".to_string(),
                 sdk_version: "".to_string(),
                 platform_version: "10.3.1".to_string(),
                 device_model: "".to_string(),
                 platform: "iOS".to_string(),
                 hostname: "".to_string(),
-            },
+            }),
             created_date: Utc::now(),
         };
 
@@ -1211,9 +1290,24 @@ mod tests {
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
         let test_cases = vec![
-            ("User platform equals filter", constants::COMPARATOR_EQUAL, vec!["iOS"], true),
-            ("User platform does not equal filter", constants::COMPARATOR_EQUAL, vec!["Linux"], false),
-            ("User platform in filter set", constants::COMPARATOR_CONTAIN, vec!["Linux", "macOS", "iOS"], true),
+            (
+                "User platform equals filter",
+                constants::COMPARATOR_EQUAL,
+                vec!["iOS"],
+                true,
+            ),
+            (
+                "User platform does not equal filter",
+                constants::COMPARATOR_EQUAL,
+                vec!["Linux"],
+                false,
+            ),
+            (
+                "User platform in filter set",
+                constants::COMPARATOR_CONTAIN,
+                vec!["Linux", "macOS", "iOS"],
+                true,
+            ),
         ];
 
         for (name, comparator, values, expected) in test_cases {
@@ -1279,7 +1373,7 @@ mod tests {
             _type: constants::TYPE_USER.to_string(),
             sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
             comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
-            values: vec![serde_json::Value::String("iOS".to_string())],
+            values: vec![serde_json::Value::String("Rust".to_string())],
             filters: vec![],
             operator: None,
             _audiences: vec![],
@@ -1336,7 +1430,10 @@ mod tests {
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
-        assert_eq!(true,filter_gt.evaluate(&audiences, &mut user, &client_custom_data));
+        assert_eq!(
+            true,
+            filter_gt.evaluate(&audiences, &mut user, &client_custom_data)
+        );
     }
 
     #[test]
@@ -2072,10 +2169,7 @@ mod tests {
 
     #[test]
     fn test_version_equal_array_no_match() {
-        let test_cases = vec![
-            ("1", vec!["2", "1.1"]),
-            ("1.1", vec!["1.2", "1"]),
-        ];
+        let test_cases = vec![("1", vec!["2", "1.1"]), ("1.1", vec!["1.2", "1"])];
 
         for (version, filter_values) in test_cases {
             let filter = Filter {
@@ -2597,7 +2691,8 @@ mod tests {
 
         let mut user = create_test_user();
         user.custom_data = HashMap::new();
-        user.custom_data.insert("boolKey".to_string(), serde_json::Value::Bool(false));
+        user.custom_data
+            .insert("boolKey".to_string(), serde_json::Value::Bool(false));
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2621,7 +2716,8 @@ mod tests {
 
         let mut user = create_test_user();
         user.custom_data = HashMap::new();
-        user.custom_data.insert("boolKey".to_string(), serde_json::Value::Bool(true));
+        user.custom_data
+            .insert("boolKey".to_string(), serde_json::Value::Bool(true));
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2880,7 +2976,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "foo".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "foo".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2904,7 +3003,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "Android".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "Android".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2924,7 +3026,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "fo".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "fo".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2944,7 +3049,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "foo".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "foo".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2968,7 +3076,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "Android".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "Android".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -2988,7 +3099,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "bar".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "bar".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -3088,7 +3202,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "Chrome".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "Chrome".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -3128,7 +3245,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "bar".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "bar".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 
@@ -3188,7 +3308,10 @@ mod tests {
         };
 
         let mut user = create_test_user();
-        user.platform_data.platform = "bar".to_string();
+        user.platform_data = Arc::new(PlatformData {
+            platform: "bar".to_string(),
+            ..(*user.platform_data).clone()
+        });
         let audiences: HashMap<String, NoIdAudience> = HashMap::new();
         let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
 

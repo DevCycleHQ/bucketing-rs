@@ -3,12 +3,31 @@ mod tests {
     use crate::bucketing;
     use crate::config::*;
     use crate::configmanager;
-    use crate::platform_data::PlatformData;
+    use crate::platform_data::{self, PlatformData};
     use crate::user::*;
     use chrono::Utc;
     use serde_json;
     use serde_json::Value;
     use std::collections::HashMap;
+    use std::sync::Once;
+
+    const TEST_SDK_KEY: &str = "test-sdk-key";
+
+    static INIT: Once = Once::new();
+
+    fn initialize_test_platform_data() {
+        INIT.call_once(|| {
+            let platform_data = PlatformData {
+                sdk_type: "server".to_string(),
+                sdk_version: "1.0.0".to_string(),
+                platform_version: "1.0.0".to_string(),
+                device_model: "test-device".to_string(),
+                platform: "test".to_string(),
+                hostname: "localhost".to_string(),
+            };
+            platform_data::set_platform_data(TEST_SDK_KEY.to_string(), platform_data);
+        });
+    }
 
     fn load_test_config() -> FullConfig {
         let config_json = include_str!("../tests/resources/test_config.json");
@@ -66,14 +85,7 @@ mod tests {
     }
 
     fn create_test_user(user_id: &str) -> PopulatedUser {
-        let platform_data = PlatformData {
-            sdk_type: "server".to_string(),
-            sdk_version: "1.0.0".to_string(),
-            platform_version: "1.0.0".to_string(),
-            device_model: "test-device".to_string(),
-            platform: "linux".to_string(),
-            hostname: "localhost".to_string(),
-        };
+        initialize_test_platform_data();
 
         PopulatedUser {
             user_id: user_id.to_string(),
@@ -87,20 +99,14 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "test-device".to_string(),
             last_seen_date: Utc::now(),
-            platform_data,
+            platform_data: platform_data::get_platform_data(TEST_SDK_KEY).unwrap(),
             created_date: Utc::now(),
         }
     }
 
     fn create_test_user_v2(user_id: &str) -> PopulatedUser {
-        let platform_data = PlatformData {
-            sdk_type: "server".to_string(),
-            sdk_version: "2.0.0".to_string(),
-            platform_version: "1.1.2".to_string(),
-            device_model: "test-device-v2".to_string(),
-            platform: "linux".to_string(),
-            hostname: "localhost".to_string(),
-        };
+        initialize_test_platform_data();
+
         let mut custom_data: HashMap<String, Value> = HashMap::new();
         custom_data.insert("favouriteNull".to_string(), Value::Null);
 
@@ -116,7 +122,7 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "test-device".to_string(),
             last_seen_date: Utc::now(),
-            platform_data,
+            platform_data: platform_data::get_platform_data(TEST_SDK_KEY).unwrap(),
             created_date: Utc::now(),
         }
     }
@@ -148,7 +154,12 @@ mod tests {
         let client_custom_data = HashMap::new();
 
         let result = unsafe {
-            bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(
+                sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
         };
 
         assert!(
@@ -185,7 +196,12 @@ mod tests {
         );
 
         let result = unsafe {
-            bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(
+                sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
         };
 
         assert!(
@@ -219,7 +235,12 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(
+                    sdk_key.to_string(),
+                    user.clone(),
+                    client_custom_data,
+                )
+                .await
             };
 
             assert!(
@@ -254,7 +275,12 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(
+                    sdk_key.to_string(),
+                    user.clone(),
+                    client_custom_data,
+                )
+                .await
             };
 
             assert!(
@@ -304,7 +330,12 @@ mod tests {
         let client_custom_data = HashMap::new();
 
         let result = unsafe {
-            bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+            bucketing::generate_bucketed_config(
+                sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
         };
 
         assert!(
@@ -483,23 +514,27 @@ mod tests {
 
         // Test different user scenarios that might exist in production
         let test_scenarios = vec![
-            ("mobile_user", "1.5.0", "mobile", "US"),
-            ("web_user", "2.1.3", "web", "GB"),
-            ("api_user", "3.0.0", "server", "DE"),
-            ("beta_user", "4.0.0-beta", "desktop", "FR"),
-            ("legacy_user", "1.0.0", "legacy", "JP"),
+            ("mobile_user", "1.5.0", "US"),
+            ("web_user", "2.1.3", "GB"),
+            ("api_user", "3.0.0", "DE"),
+            ("beta_user", "4.0.0-beta", "FR"),
+            ("legacy_user", "1.0.0", "JP"),
         ];
 
-        for (user_id, app_version, platform, country) in test_scenarios {
+        for (user_id, app_version, country) in test_scenarios {
             let mut user = create_test_user(user_id);
             user.app_version = app_version.to_string();
-            user.platform_data.platform = platform.to_string();
             user.country = country.to_string();
 
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(
+                    sdk_key.to_string(),
+                    user.clone(),
+                    client_custom_data,
+                )
+                .await
             };
 
             assert!(
@@ -530,7 +565,12 @@ mod tests {
             let client_custom_data = HashMap::new();
 
             let result = unsafe {
-                bucketing::generate_bucketed_config(sdk_key.to_string(), user.clone(), client_custom_data).await
+                bucketing::generate_bucketed_config(
+                    sdk_key.to_string(),
+                    user.clone(),
+                    client_custom_data,
+                )
+                .await
             };
 
             if result.is_ok() {
@@ -611,8 +651,12 @@ mod tests {
         };
 
         let prod_result = unsafe {
-            bucketing::generate_bucketed_config(prod_sdk_key.to_string(), user.clone(), client_custom_data)
-                .await
+            bucketing::generate_bucketed_config(
+                prod_sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
         };
 
         assert!(test_result.is_ok(), "Test config bucketing failed");
@@ -633,8 +677,12 @@ mod tests {
         load_test_config_v2();
         setup_test_config_v2("test-sdk-key-1");
         let bucketing_result = unsafe {
-            bucketing::generate_bucketed_config("test-sdk-key-1".to_string(), user.clone(), HashMap::new())
-                .await
+            bucketing::generate_bucketed_config(
+                "test-sdk-key-1".to_string(),
+                user.clone(),
+                HashMap::new(),
+            )
+            .await
         };
         assert!(
             bucketing_result.is_ok(),

@@ -863,10 +863,14 @@ mod tests {
             "key": "test-environment"
           },
           "features": [],
-          "variables": []
+          "variables": [],
+          "variableHashes": {}
         }"#;
         let result: Result<FullConfig, _> = serde_json::from_str(minimal_valid);
-        assert!(result.is_ok(), "Minimal valid config should parse successfully");
+        assert!(
+            result.is_ok(),
+            "Minimal valid config should parse successfully"
+        );
 
         let config = result.unwrap();
         assert_eq!(config.project._id, "61535533396f00bab586cb17");
@@ -895,12 +899,16 @@ mod tests {
             "_id": "id",
             "type": "squirrel",
             "key": "key"
-          }]
+          }],
+          "variableHashes": {}
         }"#;
         // Note: In Rust, this will parse successfully because we accept any string for type
         // If we want strict validation, we'd need to add validation after parsing
         let result: Result<FullConfig, _> = serde_json::from_str(invalid_variable_type);
-        assert!(result.is_ok(), "Config with invalid variable type will parse (validation needed separately)");
+        assert!(
+            result.is_ok(),
+            "Config with invalid variable type will parse (validation needed separately)"
+        );
 
         let config = result.unwrap();
         assert_eq!(config.variables.len(), 1);

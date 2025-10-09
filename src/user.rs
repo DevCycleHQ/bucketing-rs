@@ -4,6 +4,7 @@ use crate::platform_data::PlatformData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct User {
@@ -32,30 +33,19 @@ pub struct User {
 }
 
 impl User {
-    pub fn get_populated_user(&self, platform_data: PlatformData) -> PopulatedUser {
-        PopulatedUser {
-            user_id: self.user_id.clone(),
-            email: self.email.clone(),
-            name: self.name.clone(),
-            private_custom_data: self.private_custom_data.clone(),
-            custom_data: self.custom_data.clone(),
-            language: self.language.clone(),
-            country: self.country.clone(),
-            app_version: self.app_version.clone(),
-            app_build: self.app_build.clone(),
-            device_model: self.device_model.clone(),
-            last_seen_date: self.last_seen_date.clone(),
-            platform_data,
-            created_date: Utc::now(),
-        }
+    pub fn get_populated_user(&self, sdk_key: &str) -> PopulatedUser {
+        self.get_populated_user_with_platform_data_and_time(sdk_key, None, Utc::now())
     }
 
-    // GetPopulatedUserWithTime returns a populated user with a specific created date
-    pub fn get_populated_user_with_time(
+    pub fn get_populated_user_with_platform_data_and_time(
         &self,
-        platform_data: PlatformData,
+        sdk_key: &str,
+        platform_data: Option<Arc<PlatformData>>,
         create_date: DateTime<Utc>,
     ) -> PopulatedUser {
+        let platform_data = platform_data
+            .unwrap_or_else(|| crate::platform_data::get_platform_data(sdk_key).unwrap());
+
         PopulatedUser {
             user_id: self.user_id.clone(),
             email: self.email.clone(),
@@ -102,8 +92,8 @@ pub struct PopulatedUser {
     pub device_model: String,
     // Date the user was created, Unix epoch timestamp format
     pub last_seen_date: DateTime<Utc>,
-    // Platform data of the instance
-    pub platform_data: PlatformData,
+    // Platform data of the instance (Arc for efficient sharing across threads)
+    pub platform_data: Arc<PlatformData>,
     // Date the user was created, Unix epoch timestamp format
     pub created_date: DateTime<Utc>,
 }
@@ -130,8 +120,11 @@ impl PopulatedUser {
         }
         ret
     }
-    pub fn new(user: User, platform_data: PlatformData, client_custom_data: HashMap<String, serde_json::Value>) -> PopulatedUser {
-
+    pub fn new(
+        user: User,
+        platform_data: Arc<PlatformData>,
+        client_custom_data: HashMap<String, serde_json::Value>,
+    ) -> PopulatedUser {
         let mut popuser = PopulatedUser {
             user_id: user.user_id.clone(),
             email: user.email.clone(),
@@ -148,7 +141,9 @@ impl PopulatedUser {
             created_date: Utc::now(),
         };
         for (k, v) in client_custom_data {
-            if !popuser.custom_data.contains_key(&k) && !popuser.private_custom_data.contains_key(&k) {
+            if !popuser.custom_data.contains_key(&k)
+                && !popuser.private_custom_data.contains_key(&k)
+            {
                 popuser.custom_data.insert(k, v);
             }
         }

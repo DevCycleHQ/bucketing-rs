@@ -535,4 +535,3 @@ mod tests {
         assert_ne!(config_ref1.project.key, config_ref2.project.key);
     }
 }
-
