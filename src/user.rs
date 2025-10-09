@@ -93,31 +93,9 @@ pub struct PopulatedUser {
     // Date the user was created, Unix epoch timestamp format
     pub last_seen_date: DateTime<Utc>,
     // Platform data of the instance (Arc for efficient sharing across threads)
-    #[serde(
-        serialize_with = "serialize_arc_platform_data",
-        deserialize_with = "deserialize_arc_platform_data"
-    )]
     pub platform_data: Arc<PlatformData>,
     // Date the user was created, Unix epoch timestamp format
     pub created_date: DateTime<Utc>,
-}
-
-fn serialize_arc_platform_data<S>(
-    platform_data: &Arc<PlatformData>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    platform_data.serialize(serializer)
-}
-
-fn deserialize_arc_platform_data<'de, D>(deserializer: D) -> Result<Arc<PlatformData>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let platform_data = PlatformData::deserialize(deserializer)?;
-    Ok(Arc::new(platform_data))
 }
 
 impl PopulatedUser {
