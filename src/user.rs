@@ -37,37 +37,14 @@ impl User {
         self.get_populated_user_with_platform_data_and_time(sdk_key, None, Utc::now())
     }
 
-    pub fn get_populated_user_with_time(
-        &self,
-        sdk_key: &str,
-        create_date: DateTime<Utc>,
-    ) -> PopulatedUser {
-        self.get_populated_user_with_platform_data_and_time(sdk_key, None, create_date)
-    }
-
-    pub fn get_populated_user_with_platform_data(
-        &self,
-        sdk_key: &str,
-        platform_data: Arc<PlatformData>,
-    ) -> PopulatedUser {
-        self.get_populated_user_with_platform_data_and_time(
-            sdk_key,
-            Some(platform_data),
-            Utc::now(),
-        )
-    }
-
     pub fn get_populated_user_with_platform_data_and_time(
         &self,
         sdk_key: &str,
         platform_data: Option<Arc<PlatformData>>,
         create_date: DateTime<Utc>,
     ) -> PopulatedUser {
-        let platform_data = platform_data.unwrap_or_else(|| {
-            crate::platform_data::get_platform_data(sdk_key).expect(
-                "Platform data must be set via set_platform_data() before creating a PopulatedUser",
-            )
-        });
+        let platform_data = platform_data
+            .unwrap_or_else(|| crate::platform_data::get_platform_data(sdk_key).unwrap());
 
         PopulatedUser {
             user_id: self.user_id.clone(),
