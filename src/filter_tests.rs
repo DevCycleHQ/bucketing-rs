@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod filter_tests {
+mod tests {
     use crate::constants;
     use crate::filters::*;
     use crate::platform_data::PlatformData;
@@ -1166,5 +1166,890 @@ mod filter_tests {
                 expected
             );
         }
+    }
+
+    #[test]
+    fn test_custom_data_string_equal_no_data() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("strKey".to_string()),
+                serde_json::Value::String("value".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_string_equal_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("strKey".to_string()),
+                serde_json::Value::String("value".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "strKey".to_string(),
+            serde_json::Value::String("value".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_string_equal_or_values() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("strKey".to_string()),
+                serde_json::Value::String("value".to_string()),
+                serde_json::Value::String("value too".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "strKey".to_string(),
+            serde_json::Value::String("value".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_string_not_equal() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("strKey".to_string()),
+                serde_json::Value::String("value".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "strKey".to_string(),
+            serde_json::Value::String("rutabaga".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_string_empty_string() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("strKey".to_string()),
+                serde_json::Value::String("value".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "strKey".to_string(),
+            serde_json::Value::String("".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_string_key_not_present() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("strKey".to_string()),
+                serde_json::Value::String("value".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "otherKey".to_string(),
+            serde_json::Value::String("something else".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_string_not_equal_multiple() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("strKey".to_string()),
+                serde_json::Value::String("value1".to_string()),
+                serde_json::Value::String("value2".to_string()),
+                serde_json::Value::String("value3".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "strKey".to_string(),
+            serde_json::Value::String("value".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_number_equal() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("numKey".to_string()),
+                serde_json::Value::Number(serde_json::Number::from(0)),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "numKey".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(0)),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_number_or_values() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("numKey".to_string()),
+                serde_json::Value::Number(serde_json::Number::from(0)),
+                serde_json::Value::Number(serde_json::Number::from(1)),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "numKey".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(1)),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_number_not_equal() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("numKey".to_string()),
+                serde_json::Value::Number(serde_json::Number::from(0)),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "numKey".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(1)),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_bool_equal_true() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("boolKey".to_string()),
+                serde_json::Value::Bool(false),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert("boolKey".to_string(), serde_json::Value::Bool(false));
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_bool_not_equal() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("boolKey".to_string()),
+                serde_json::Value::Bool(false),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert("boolKey".to_string(), serde_json::Value::Bool(true));
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_not_equal_no_data() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("strKey".to_string()),
+                serde_json::Value::String("value".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_not_exist_no_data() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_EXIST.to_string()),
+            values: vec![serde_json::Value::String("strKey".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_not_exist_with_data() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_EXIST.to_string()),
+            values: vec![serde_json::Value::String("strKey".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "strKey".to_string(),
+            serde_json::Value::String("value".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_contains() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_CONTAIN.to_string()),
+            values: vec![
+                serde_json::Value::String("last_order_no".to_string()),
+                serde_json::Value::String("FP".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "last_order_no".to_string(),
+            serde_json::Value::String("FP2423423".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_not_contains() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_CONTAIN.to_string()),
+            values: vec![
+                serde_json::Value::String("last_order_no".to_string()),
+                serde_json::Value::String("FP".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "last_order_no".to_string(),
+            serde_json::Value::String("FP2423423".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_exist_with_value() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EXIST.to_string()),
+            values: vec![serde_json::Value::String("last_order_no".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "last_order_no".to_string(),
+            serde_json::Value::String("FP2423423".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_exist_without_field() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EXIST.to_string()),
+            values: vec![serde_json::Value::String("last_order_no".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        user.custom_data.insert(
+            "otherField".to_string(),
+            serde_json::Value::String("value".to_string()),
+        );
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_exist_empty_data() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EXIST.to_string()),
+            values: vec![serde_json::Value::String("last_order_no".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_custom_data_with_client_custom_data() {
+        // Test that custom data works when passed via client_custom_data instead of user.custom_data
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_CUSTOM_DATA.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("strKey".to_string()),
+                serde_json::Value::String("value".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.custom_data = HashMap::new();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let mut client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+        client_custom_data.insert(
+            "strKey".to_string(),
+            serde_json::Value::String("value".to_string()),
+        );
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    // String Filter Tests - Converted from Go TestCheckStringsFilter
+
+    #[test]
+    fn test_string_filter_equal_empty_no_values() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_EMAIL.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.email = "".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_equal_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![serde_json::Value::String("foo".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.platform_data.platform = "foo".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_equal_match_in_list() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("iPhone OS".to_string()),
+                serde_json::Value::String("Android".to_string()),
+                serde_json::Value::String("Blackberry".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.platform_data.platform = "Android".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_equal_no_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
+            comparator: Some(constants::COMPARATOR_EQUAL.to_string()),
+            values: vec![serde_json::Value::String("foo".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.platform_data.platform = "fo".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_not_equal_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_EQUAL.to_string()),
+            values: vec![serde_json::Value::String("foo".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.platform_data.platform = "foo".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_not_equal_match_in_list() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_EQUAL.to_string()),
+            values: vec![
+                serde_json::Value::String("iPhone OS".to_string()),
+                serde_json::Value::String("Android".to_string()),
+                serde_json::Value::String("Blackberry".to_string()),
+            ],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.platform_data.platform = "Android".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_not_equal_no_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_EQUAL.to_string()),
+            values: vec![serde_json::Value::String("foo".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.platform_data.platform = "bar".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_exist_empty() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_EMAIL.to_string()),
+            comparator: Some(constants::COMPARATOR_EXIST.to_string()),
+            values: vec![],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.email = "".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_exist_not_empty() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_EMAIL.to_string()),
+            comparator: Some(constants::COMPARATOR_EXIST.to_string()),
+            values: vec![],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.email = "string".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_not_exist_empty() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_EMAIL.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_EXIST.to_string()),
+            values: vec![],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.email = "".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_not_exist_not_empty() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_EMAIL.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_EXIST.to_string()),
+            values: vec![],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.email = "exists".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_contain_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
+            comparator: Some(constants::COMPARATOR_CONTAIN.to_string()),
+            values: vec![serde_json::Value::String("Chrome".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.platform_data.platform = "Chrome".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_contain_partial_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_DEVICE_MODEL.to_string()),
+            comparator: Some(constants::COMPARATOR_CONTAIN.to_string()),
+            values: vec![serde_json::Value::String("hello".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.device_model = "helloWorld".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_contain_no_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
+            comparator: Some(constants::COMPARATOR_CONTAIN.to_string()),
+            values: vec![serde_json::Value::String("foo".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.platform_data.platform = "bar".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_not_contain_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_DEVICE_MODEL.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_CONTAIN.to_string()),
+            values: vec![serde_json::Value::String("Desktop".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.device_model = "Desktop".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_not_contain_partial_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_DEVICE_MODEL.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_CONTAIN.to_string()),
+            values: vec![serde_json::Value::String("oob".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.device_model = "foobar".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(!filter.evaluate(&audiences, &mut user, &client_custom_data));
+    }
+
+    #[test]
+    fn test_string_filter_not_contain_no_match() {
+        let filter = Filter {
+            _type: constants::TYPE_USER.to_string(),
+            sub_type: Some(constants::SUB_TYPE_PLATFORM.to_string()),
+            comparator: Some(constants::COMPARATOR_NOT_CONTAIN.to_string()),
+            values: vec![serde_json::Value::String("foo".to_string())],
+            filters: vec![],
+            operator: None,
+            _audiences: vec![],
+        };
+
+        let mut user = create_test_user();
+        user.platform_data.platform = "bar".to_string();
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
+        let client_custom_data: HashMap<String, serde_json::Value> = HashMap::new();
+
+        assert!(filter.evaluate(&audiences, &mut user, &client_custom_data));
     }
 }
