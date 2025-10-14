@@ -168,7 +168,7 @@ pub(crate) unsafe fn does_user_qualify_for_feature(
     feature: &ConfigFeature,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
-) -> Result<(TargetAndHashes, bool), DevCycleError> {
+) -> Result<TargetAndHashes, DevCycleError> {
     let target_pair =
         evaluate_segmentation_for_feature(config, feature, user.clone(), client_custom_data);
     if !target_pair.is_ok() {
@@ -189,13 +189,11 @@ pub(crate) unsafe fn does_user_qualify_for_feature(
     if !passthrough_enabled && !does_user_pass_rollout(target.rollout.clone(), rollout_hash) {
         return Err(errors::FAILED_USER_DOES_NOT_QUALIFY_FOR_ROLLOUTS);
     }
-    Ok((
-        TargetAndHashes {
-            target,
-            bounded_hash: bounded_hashes,
-        },
+    Ok(TargetAndHashes {
+        target,
+        bounded_hash: bounded_hashes,
         is_rollout,
-    ))
+    })
 }
 pub(crate) fn bucket_user_for_variation(
     feature: &ConfigFeature,
@@ -245,14 +243,14 @@ pub(crate) async unsafe fn generate_bucketed_config(
             continue;
         }
 
-        let (target_and_hashes, is_rollout) = target_hash?;
+        let target_and_hashes = target_hash?;
         let variation = bucket_user_for_variation(feature, target_and_hashes.clone());
         if !variation.is_ok() {
             return Err(variation.err().unwrap());
         }
 
         let (variation_instance, is_random_distrib) = variation.ok().unwrap();
-        let eval_reason = if is_rollout || is_random_distrib {
+        let eval_reason = if target_and_hashes.is_rollout || is_random_distrib {
             EvaluationReason::Split
         } else {
             EvaluationReason::TargetingMatch
