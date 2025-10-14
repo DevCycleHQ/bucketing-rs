@@ -717,4 +717,146 @@ mod tests {
         );
         println!("Bucketed Config JSON:\n{}", json.unwrap());
     }
+
+    #[tokio::test]
+    async fn test_evaluation_reasons_are_set() {
+        let sdk_key = "test-sdk-key-eval-reasons";
+        setup_test_config(sdk_key.to_string());
+
+        let user = create_test_user("eval-test-user");
+        let client_custom_data = HashMap::new();
+
+        let result = unsafe {
+            bucketing::generate_bucketed_config(
+                sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
+        };
+
+        assert!(result.is_ok(), "Failed to generate bucketed config");
+        let bucketed_config = result.unwrap();
+
+        // Verify that features have evalreason set
+        for (feature_key, feature) in &bucketed_config.features {
+            assert!(
+                feature.evalreason.is_some(),
+                "Feature '{}' should have evalreason set",
+                feature_key
+            );
+            let reason = feature.evalreason.as_ref().unwrap();
+            assert!(
+                reason == "TARGETING_MATCH" || reason == "SPLIT",
+                "Feature '{}' has unexpected evalreason: {}",
+                feature_key,
+                reason
+            );
+        }
+
+        // Verify that variables have eval details with reason and target_id
+        for (variable_key, variable) in &bucketed_config.variables {
+            use crate::event::EvaluationReason;
+            let eval_details = &variable.eval;
+
+            // Check reason is valid enum variant (use pattern matching for type safety)
+            assert!(
+                matches!(
+                    eval_details.reason,
+                    EvaluationReason::TargetingMatch | EvaluationReason::Split
+                ),
+                "Variable '{}' has unexpected eval reason: {:?}",
+                variable_key,
+                eval_details.reason
+            );
+
+            // Check target_id is set and valid
+            assert!(
+                eval_details.target_id.is_some(),
+                "Variable '{}' should have target_id set",
+                variable_key
+            );
+            let target_id = eval_details.target_id.as_ref().unwrap();
+            assert!(
+                !target_id.is_empty() && target_id.len() >= 10,
+                "Variable '{}' target_id should be valid: {}",
+                variable_key,
+                target_id
+            );
+
+            // Check details is empty for successful evaluation
+            assert!(
+                eval_details.details.is_empty(),
+                "Variable '{}' details should be empty for successful evaluation",
+                variable_key
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_evaluation_details_serialization() {
+        let sdk_key = "test-sdk-key-serialization";
+        setup_test_config(sdk_key.to_string());
+
+        let user = create_test_user("serialization-test");
+        let client_custom_data = HashMap::new();
+
+        let result = unsafe {
+            bucketing::generate_bucketed_config(
+                sdk_key.to_string(),
+                user.clone(),
+                client_custom_data,
+            )
+            .await
+        };
+
+        assert!(result.is_ok());
+        let bucketed_config = result.unwrap();
+
+        // Serialize the bucketed config to JSON
+        let json_result = serde_json::to_value(&bucketed_config);
+        assert!(
+            json_result.is_ok(),
+            "Should be able to serialize bucketed config with eval details"
+        );
+
+        let json = json_result.unwrap();
+
+        // Check that variables have eval field in JSON
+        if let Some(variables) = json.get("variables").and_then(|v| v.as_object()) {
+            for (var_key, var_value) in variables {
+                let eval = var_value.get("eval");
+                assert!(
+                    eval.is_some(),
+                    "Variable '{}' should have 'eval' field in JSON",
+                    var_key
+                );
+
+                let eval_obj = eval.unwrap();
+                assert!(
+                    eval_obj.get("reason").is_some(),
+                    "Variable '{}' eval should have 'reason' field",
+                    var_key
+                );
+
+                // target_id should be present (not skipped in serialization)
+                assert!(
+                    eval_obj.get("target_id").is_some(),
+                    "Variable '{}' eval should have 'target_id' field",
+                    var_key
+                );
+
+                // Verify reason is one of the expected values
+                let reason = eval_obj.get("reason").unwrap().as_str().unwrap();
+                assert!(
+                    reason == "TARGETING_MATCH" || reason == "SPLIT",
+                    "Variable '{}' has unexpected reason in JSON: {}",
+                    var_key,
+                    reason
+                );
+            }
+        } else {
+            panic!("Bucketed config should have variables object");
+        }
+    }
 }

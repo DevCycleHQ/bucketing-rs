@@ -25,6 +25,8 @@ mod configmanager_tests;
 mod event;
 mod event_queue;
 #[cfg(test)]
+mod event_tests;
+#[cfg(test)]
 mod filter_tests;
 #[cfg(test)]
 mod murmurhash_tests;
@@ -33,6 +35,9 @@ mod platform_data_tests;
 
 // Export platform data types and functions for external SDKs
 pub use platform_data::{get_platform_data, set_platform_data, PlatformData};
+
+// Export evaluation reason types for external use
+pub use event::{DefaultReason, EvalDetails, EvaluationReason};
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
