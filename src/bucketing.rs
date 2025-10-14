@@ -285,7 +285,7 @@ pub(crate) async unsafe fn generate_bucketed_config(
                     value: var.value.clone(),
                     eval: EvalDetails {
                         reason: eval_reason.clone(),
-                        details: String::new(),
+                        details: None,
                         target_id: Some(target_and_hashes.target._id.clone()),
                     },
                 },

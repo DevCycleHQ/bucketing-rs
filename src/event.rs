@@ -91,7 +91,8 @@ impl fmt::Display for DefaultReason {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvalDetails {
     pub reason: EvaluationReason,
-    pub details: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_id: Option<String>,
 }

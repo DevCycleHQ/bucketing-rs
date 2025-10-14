@@ -784,10 +784,10 @@ mod tests {
                 target_id
             );
 
-            // Check details is empty for successful evaluation
+            // Check details is None for successful evaluation
             assert!(
-                eval_details.details.is_empty(),
-                "Variable '{}' details should be empty for successful evaluation",
+                eval_details.details.is_none(),
+                "Variable '{}' details should be None for successful evaluation",
                 variable_key
             );
         }
