@@ -92,6 +92,6 @@ pub struct Feature {
     pub variationkey: String,
     #[serde(rename = "variationName", alias = "variationName")]
     pub variationname: String,
-    #[serde(skip_serializing)]
+    #[serde(rename = "evalReason", skip_serializing_if = "Option::is_none")]
     pub evalreason: Option<String>,
 }
