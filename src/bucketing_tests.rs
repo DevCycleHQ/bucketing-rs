@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::bucketing;
+    use crate::{bucketing, EvaluationReason};
     use crate::config::*;
     use crate::configmanager;
     use crate::platform_data::{self, PlatformData};
@@ -747,7 +747,7 @@ mod tests {
             );
             let reason = feature.evalreason.as_ref().unwrap();
             assert!(
-                reason == "TARGETING_MATCH" || reason == "SPLIT",
+                reason == &EvaluationReason::TargetingMatch || reason == &EvaluationReason::Split,
                 "Feature '{}' has unexpected evalreason: {}",
                 feature_key,
                 reason

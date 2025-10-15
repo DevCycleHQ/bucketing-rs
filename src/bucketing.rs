@@ -265,7 +265,7 @@ pub(crate) async unsafe fn generate_bucketed_config(
                 variationkey: variation_instance.key.clone(),
                 variationname: variation_instance.name.clone(),
                 key: feature.key.clone(),
-                evalreason: Some(eval_reason.to_string()),
+                evalreason: Some(eval_reason.clone()),
             },
         );
         feature_variation_map.insert(feature._id.clone(), variation_instance._id.clone());

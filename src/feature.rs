@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
+use crate::EvaluationReason;
 use crate::event::EvalDetails;
 use crate::target::Target;
 
@@ -93,5 +93,5 @@ pub struct Feature {
     #[serde(rename = "variationName", alias = "variationName")]
     pub variationname: String,
     #[serde(rename = "evalReason", skip_serializing_if = "Option::is_none")]
-    pub evalreason: Option<String>,
+    pub evalreason: Option<EvaluationReason>,
 }
