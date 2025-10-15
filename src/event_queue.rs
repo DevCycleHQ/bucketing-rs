@@ -44,6 +44,7 @@ impl Default for EventQueueOptions {
         }
     }
 }
+
 pub(crate) struct EventQueue {
     pub(crate) sdk_key: String,
     pub(crate) platform_data: Arc<PlatformData>,
@@ -105,6 +106,7 @@ impl EventQueue {
             )
             .await;
     }
+
     pub async fn queue_variable_defaulted_event(
         &mut self,
         variable_key: &str,
@@ -172,6 +174,7 @@ impl EventQueue {
         }
         return Ok(true);
     }
+
     pub async fn merge_agg_event_queue_keys(&mut self, config_body: &ConfigBody<'_>) {
         let guard = self.queue_access_mutex.lock().await;
         for event_type in [
@@ -182,6 +185,7 @@ impl EventQueue {
                 self.agg_event_queue
                     .insert(event_type.clone(), HashMap::new());
             }
+
             for variable in config_body.variables.iter() {
                 if !self
                     .agg_event_queue
@@ -194,6 +198,7 @@ impl EventQueue {
                         .unwrap()
                         .insert(variable.key.clone(), HashMap::new());
                 }
+
                 for feature in config_body.features.iter() {
                     if !self
                         .agg_event_queue
@@ -210,6 +215,7 @@ impl EventQueue {
                             .unwrap()
                             .insert(feature._id.clone(), HashMap::new());
                     }
+
                     for variation in feature.variations.iter() {
                         if !self
                             .agg_event_queue
@@ -230,10 +236,12 @@ impl EventQueue {
                                 .unwrap()
                                 .insert(variation._id.clone(), HashMap::new());
                         }
+
                         for reason in [
                             EvaluationReason::TargetingMatch,
                             EvaluationReason::Split,
                             EvaluationReason::Default,
+                            EvaluationReason::Disabled,
                             EvaluationReason::Error,
                         ] {
                             if !self

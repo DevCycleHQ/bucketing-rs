@@ -75,6 +75,7 @@ pub(crate) struct TargetDistribution {
 pub(crate) struct TargetAndHashes {
     pub(crate) target: Target,
     pub(crate) bounded_hash: murmurhash::BoundedHash,
+    pub(crate) is_rollout: bool,
 }
 
 fn default_bucketing_key() -> String {

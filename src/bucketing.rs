@@ -3,6 +3,7 @@ use crate::configmanager;
 use crate::constants;
 use crate::errors;
 use crate::errors::{missing_config, missing_variation, DevCycleError};
+use crate::event::{EvalDetails, EvaluationReason};
 use crate::feature::*;
 use crate::murmurhash::murmurhash;
 use crate::target::*;
@@ -191,6 +192,7 @@ pub(crate) unsafe fn does_user_qualify_for_feature(
     Ok(TargetAndHashes {
         target,
         bounded_hash: bounded_hashes,
+        is_rollout,
     })
 }
 pub(crate) fn bucket_user_for_variation(
@@ -240,12 +242,20 @@ pub(crate) async unsafe fn generate_bucketed_config(
         if !target_hash.is_ok() {
             continue;
         }
+
         let target_and_hashes = target_hash?;
         let variation = bucket_user_for_variation(feature, target_and_hashes.clone());
         if !variation.is_ok() {
             return Err(variation.err().unwrap());
         }
+
         let (variation_instance, is_random_distrib) = variation.ok().unwrap();
+        let eval_reason = if target_and_hashes.is_rollout || is_random_distrib {
+            EvaluationReason::Split
+        } else {
+            EvaluationReason::TargetingMatch
+        };
+
         features.insert(
             feature.key.clone(),
             Feature {
@@ -255,7 +265,7 @@ pub(crate) async unsafe fn generate_bucketed_config(
                 variationkey: variation_instance.key.clone(),
                 variationname: variation_instance.name.clone(),
                 key: feature.key.clone(),
-                evalreason: None,
+                evalreason: Some(eval_reason.to_string()),
             },
         );
         feature_variation_map.insert(feature._id.clone(), variation_instance._id.clone());
@@ -273,6 +283,11 @@ pub(crate) async unsafe fn generate_bucketed_config(
                     key: variable_instance.key.clone(),
                     _type: variable_instance._type.clone(),
                     value: var.value.clone(),
+                    eval: EvalDetails {
+                        reason: eval_reason.clone(),
+                        details: None,
+                        target_id: Some(target_and_hashes.target._id.clone()),
+                    },
                 },
             );
             variable_variation_map.insert(

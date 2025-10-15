@@ -1,3 +1,4 @@
+use crate::event::DefaultReason;
 use std::error::Error;
 use std::fmt;
 
@@ -65,4 +66,36 @@ pub fn missing_variation() -> DevCycleError {
 
 pub fn missing_config() -> DevCycleError {
     DevCycleError::new("Missing config")
+}
+
+pub fn missing_feature() -> DevCycleError {
+    DevCycleError::new("Missing feature")
+}
+
+pub fn missing_variable_for_variation() -> DevCycleError {
+    DevCycleError::new("Missing variable for variation")
+}
+
+pub fn invalid_variable_type() -> DevCycleError {
+    DevCycleError::new("Invalid variable type")
+}
+
+pub fn variable_type_mismatch() -> DevCycleError {
+    DevCycleError::new("Variable type mismatch")
+}
+
+pub fn bucket_result_error_to_default_reason(err: &DevCycleError) -> DefaultReason {
+    match err.details.as_str() {
+        "Missing config" => DefaultReason::MissingConfig,
+        "Missing variable" => DefaultReason::MissingVariable,
+        "Missing feature" => DefaultReason::MissingFeature,
+        "Missing variation" => DefaultReason::MissingVariation,
+        "Missing variable for variation" => DefaultReason::MissingVariableForVariation,
+        "User does not qualify for rollouts" => DefaultReason::UserNotInRollout,
+        "User does not qualify for targets" => DefaultReason::UserNotTargeted,
+        "Invalid variable type" => DefaultReason::InvalidVariableType,
+        "Variable type mismatch" => DefaultReason::VariableTypeMismatch,
+        "" => DefaultReason::NotDefaulted,
+        _ => DefaultReason::Unknown,
+    }
 }

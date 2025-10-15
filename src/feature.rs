@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::event::EvalDetails;
 use crate::target::Target;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -17,6 +18,7 @@ pub struct ReadOnlyVariable {
     #[serde(rename = "type")]
     pub _type: String,
     pub value: serde_json::Value,
+    pub eval: EvalDetails,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -90,6 +92,6 @@ pub struct Feature {
     pub variationkey: String,
     #[serde(rename = "variationName", alias = "variationName")]
     pub variationname: String,
-    #[serde(skip_serializing)]
+    #[serde(rename = "evalReason", skip_serializing_if = "Option::is_none")]
     pub evalreason: Option<String>,
 }
