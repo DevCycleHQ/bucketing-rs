@@ -56,9 +56,11 @@ pub async unsafe fn init_event_queue(
     event_queue_options: EventQueueOptions,
 ) -> Result<(), DevCycleError> {
     let eq = events::event_queue::EventQueue::new(sdk_key.to_string(), event_queue_options);
-    if !eq.is_ok() {
-        return Err(eq.err().unwrap());
+    match eq {
+        Ok(queue) => {
+            events::event_queue_manager::set_event_queue(sdk_key, queue);
+            Ok(())
+        }
+        Err(e) => Err(e),
     }
-    events::event_queue_manager::set_event_queue(sdk_key, eq.ok().unwrap());
-    return Ok(());
 }
