@@ -4,8 +4,8 @@ use crate::constants;
 use crate::errors;
 use crate::errors::bucket_result_error_to_default_reason;
 use crate::errors::{missing_config, missing_variation, DevCycleError};
-use crate::event::{EvalDetails, EvaluationReason};
-use crate::event_queue::EventQueue;
+use crate::events::event::{EvalDetails, EvaluationReason};
+use crate::events::event_queue::EventQueue;
 use crate::feature::*;
 use crate::murmurhash::murmurhash;
 use crate::target::*;
@@ -383,7 +383,7 @@ pub(crate) fn bucket_user_for_variation(
     }
     Err(missing_variation())
 }
-pub(crate) async unsafe fn generate_bucketed_config(
+pub async unsafe fn generate_bucketed_config(
     sdk_key: String,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,

@@ -2,43 +2,31 @@ use crate::errors::DevCycleError;
 use crate::user::{BucketedUserConfig, PopulatedUser, User};
 use std::collections::HashMap;
 
+// Module declarations - now organized with mod.rs files in each folder
 pub mod bucketing;
 pub mod config;
-pub mod configmanager;
-pub mod constants;
-pub mod errors;
-pub mod feature;
-pub mod filters;
-pub mod murmurhash;
-pub mod platform_data;
-pub mod target;
+pub mod events;
+pub mod segmentation;
 pub mod user;
-pub mod versioncompare;
+pub mod util;
 
-#[cfg(test)]
-mod bucketing_tests;
-mod client_custom_data;
-#[cfg(test)]
-mod config_tests;
-#[cfg(test)]
-mod configmanager_tests;
-mod event;
-mod event_queue;
-mod event_queue_manager;
-mod event_queue_tests;
-#[cfg(test)]
-mod event_tests;
-#[cfg(test)]
-mod filter_tests;
-#[cfg(test)]
-mod murmurhash_tests;
-#[cfg(test)]
-mod platform_data_tests;
+// Re-export commonly used items from submodules
+pub use config::configmanager;
+pub use config::feature;
+pub use events::event;
+pub use segmentation::filters;
+pub use segmentation::target;
+pub use segmentation::versioncompare;
+pub use user::platform_data;
+pub use util::constants;
+pub use util::errors;
+pub use util::murmurhash;
 
 // Export platform data types and functions for external SDKs
 pub use platform_data::{get_platform_data, set_platform_data, PlatformData};
 
 // Export evaluation reason types for external use
+use crate::events::EventQueueOptions;
 pub use event::{DefaultReason, EvalDetails, EvaluationReason};
 
 pub fn add(left: u64, right: u64) -> u64 {
@@ -63,13 +51,14 @@ pub async unsafe fn generate_bucketed_config_from_user(
         .await
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+pub async unsafe fn init_event_queue(
+    sdk_key: &str,
+    event_queue_options: EventQueueOptions,
+) -> Result<(), DevCycleError> {
+    let eq = events::event_queue::EventQueue::new(sdk_key.to_string(), event_queue_options);
+    if !eq.is_ok() {
+        return Err(eq.err().unwrap());
     }
+    events::event_queue_manager::set_event_queue(sdk_key, eq.ok().unwrap());
+    return Ok(());
 }

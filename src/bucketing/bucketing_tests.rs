@@ -30,12 +30,12 @@ mod tests {
     }
 
     fn load_test_config() -> FullConfig {
-        let config_json = include_str!("../tests/resources/test_config.json");
+        let config_json = include_str!("../../tests/resources/test_config.json");
         serde_json::from_str(config_json).expect("Failed to parse test config")
     }
 
     fn load_test_config_v2() -> FullConfig {
-        let config_json = include_str!("../tests/resources/fixture_test_v2_config.json");
+        let config_json = include_str!("../../tests/resources/fixture_test_v2_config.json");
         serde_json::from_str(config_json).expect("Failed to parse test config v2")
     }
 
@@ -431,7 +431,7 @@ mod tests {
 
     // Production config tests using the real CDN config
     fn load_production_config() -> FullConfig {
-        let config_json = include_str!("../tests/resources/production_config.json");
+        let config_json = include_str!("../../tests/resources/production_config.json");
         serde_json::from_str(config_json).expect("Failed to parse production config")
     }
 
@@ -871,7 +871,7 @@ mod tests {
     #[tokio::test]
     async fn test_variable_for_user() {
         use crate::constants;
-        use crate::event_queue::{EventQueue, EventQueueOptions};
+        use crate::events::event_queue::{EventQueue, EventQueueOptions};
         let sdk_key = "test-variable-for-user";
 
         // Setup user with custom data matching the Go test

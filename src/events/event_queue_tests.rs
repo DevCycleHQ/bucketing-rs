@@ -3,7 +3,7 @@ mod tests {
     use crate::config::*;
     use crate::configmanager::*;
     use crate::event::*;
-    use crate::event_queue::*;
+    use crate::events::{EventQueue, EventQueueOptions};
     use crate::platform_data::PlatformData;
     use crate::user::User;
     use chrono::Utc;
