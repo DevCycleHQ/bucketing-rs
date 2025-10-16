@@ -1,8 +1,7 @@
-use crate::config::ConfigBody;
+use crate::event_queue::EventQueue;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use crate::event_queue::EventQueue;
 
 pub(crate) static EVENT_QUEUES: Lazy<RwLock<HashMap<String, Arc<EventQueue>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));

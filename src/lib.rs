@@ -24,6 +24,7 @@ mod config_tests;
 mod configmanager_tests;
 mod event;
 mod event_queue;
+mod event_queue_manager;
 #[cfg(test)]
 mod event_tests;
 #[cfg(test)]
@@ -32,7 +33,6 @@ mod filter_tests;
 mod murmurhash_tests;
 #[cfg(test)]
 mod platform_data_tests;
-mod event_queue_manager;
 
 // Export platform data types and functions for external SDKs
 pub use platform_data::{get_platform_data, set_platform_data, PlatformData};
