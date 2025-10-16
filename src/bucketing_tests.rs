@@ -909,7 +909,7 @@ mod tests {
             private_custom_data: HashMap::new(),
             device_model: "test-device".to_string(),
             last_seen_date: Utc::now(),
-            platform_data: platform_data::get_platform_data(TEST_SDK_KEY).unwrap(),
+            platform_data: platform_data::get_platform_data(sdk_key).unwrap(),
             created_date: Utc::now(),
         };
 
