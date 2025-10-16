@@ -1,16 +1,16 @@
-use crate::client_custom_data::get_client_custom_data;
 use crate::config::ConfigBody;
 use crate::errors::DevCycleError;
-use crate::event::*;
+use crate::events::event::*;
 use crate::generate_bucketed_config;
 use crate::platform_data::PlatformData;
+use crate::segmentation::client_custom_data::get_client_custom_data;
 use crate::user::{PopulatedUser, User};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
-pub(crate) struct EventQueueOptions {
+pub struct EventQueueOptions {
     pub flush_events_interval: Duration,
     pub disable_automatic_event_logging: bool,
     pub disable_custom_event_logging: bool,
