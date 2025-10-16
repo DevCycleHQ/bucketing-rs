@@ -149,17 +149,20 @@ impl EventQueue {
 
         let success = self
             .agg_event_queue_raw_tx
-            .send(AggEventQueueRawMessage {
+            .try_send(AggEventQueueRawMessage {
                 event_type,
                 variation_id: variation_id.to_string(),
                 feature_id: feature_id.to_string(),
                 variable_key: variable_key.to_string(),
                 eval_metadata: eval,
-            })
-            .await;
+            });
 
         if success.is_err() {
             self.events_dropped += 1;
+            return Err(DevCycleError::new(&format!(
+                "dropping event, queue is full: {}",
+                success.unwrap_err()
+            )));
         }
         return Ok(true);
     }
@@ -167,10 +170,14 @@ impl EventQueue {
     pub async fn queue_event(&mut self, user: User, event: Event) -> Result<bool, DevCycleError> {
         let success = self
             .user_event_queue_raw_tx
-            .send(UserEventData { user, event })
-            .await;
+            .try_send(UserEventData { user, event });
+
         if success.is_err() {
             self.events_dropped += 1;
+            return Err(DevCycleError::new(&format!(
+                "dropping event, queue is full: {}",
+                success.unwrap_err()
+            )));
         }
         return Ok(true);
     }
