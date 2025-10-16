@@ -24,6 +24,8 @@ mod config_tests;
 mod configmanager_tests;
 mod event;
 mod event_queue;
+mod event_queue_manager;
+mod event_queue_tests;
 #[cfg(test)]
 mod event_tests;
 #[cfg(test)]

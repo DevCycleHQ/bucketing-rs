@@ -48,18 +48,18 @@ impl Default for EventQueueOptions {
 pub(crate) struct EventQueue {
     pub(crate) sdk_key: String,
     pub(crate) platform_data: Arc<PlatformData>,
-    pub(crate) agg_event_queue_raw_tx: mpsc::Sender<crate::event::AggEventQueueRawMessage>,
-    pub(crate) agg_event_queue_raw_rx: mpsc::Receiver<crate::event::AggEventQueueRawMessage>,
-    pub(crate) user_event_queue_raw_tx: mpsc::Sender<String>,
-    pub(crate) user_event_queue_raw_rx: mpsc::Receiver<String>,
-    pub(crate) agg_event_queue: crate::event::AggregateEventQueue,
-    pub(crate) user_event_queue: crate::event::UserEventQueue,
+    pub(crate) agg_event_queue_raw_tx: mpsc::Sender<AggEventQueueRawMessage>,
+    pub(crate) agg_event_queue_raw_rx: mpsc::Receiver<AggEventQueueRawMessage>,
+    pub(crate) user_event_queue_raw_tx: mpsc::Sender<UserEventData>,
+    pub(crate) user_event_queue_raw_rx: mpsc::Receiver<UserEventData>,
+    pub(crate) agg_event_queue: AggregateEventQueue,
+    pub(crate) user_event_queue: UserEventQueue,
     pub(crate) user_event_queue_count: i32,
     pub(crate) queue_access_mutex: tokio::sync::Mutex<()>,
     pub(crate) events_flushed: i64,
     pub(crate) events_dropped: i64,
     pub(crate) events_reported: i64,
-    pub(crate) options: crate::event_queue::EventQueueOptions,
+    pub(crate) options: EventQueueOptions,
 }
 
 impl EventQueue {
@@ -149,17 +149,20 @@ impl EventQueue {
 
         let success = self
             .agg_event_queue_raw_tx
-            .send(AggEventQueueRawMessage {
+            .try_send(AggEventQueueRawMessage {
                 event_type,
                 variation_id: variation_id.to_string(),
                 feature_id: feature_id.to_string(),
                 variable_key: variable_key.to_string(),
                 eval_metadata: eval,
-            })
-            .await;
+            });
 
         if success.is_err() {
             self.events_dropped += 1;
+            return Err(DevCycleError::new(&format!(
+                "dropping event, queue is full: {}",
+                success.unwrap_err()
+            )));
         }
         return Ok(true);
     }
@@ -167,16 +170,20 @@ impl EventQueue {
     pub async fn queue_event(&mut self, user: User, event: Event) -> Result<bool, DevCycleError> {
         let success = self
             .user_event_queue_raw_tx
-            .send(user.user_id.clone())
-            .await;
+            .try_send(UserEventData { user, event });
+
         if success.is_err() {
             self.events_dropped += 1;
+            return Err(DevCycleError::new(&format!(
+                "dropping event, queue is full: {}",
+                success.unwrap_err()
+            )));
         }
         return Ok(true);
     }
 
-    pub async fn merge_agg_event_queue_keys(&mut self, config_body: &ConfigBody<'_>) {
-        let guard = self.queue_access_mutex.lock().await;
+    pub(crate) async fn merge_agg_event_queue_keys(&mut self, config_body: &ConfigBody<'_>) {
+        let _guard = self.queue_access_mutex.lock().await;
         for event_type in [
             EventType::AggregateVariableDefaulted,
             EventType::AggregateVariableEvaluated,
@@ -286,7 +293,8 @@ impl EventQueue {
             client_custom_data.clone(),
         );
         let bucketed_config =
-            generate_bucketed_config(&self.sdk_key, populated_user, client_custom_data).await;
+            generate_bucketed_config(&self.sdk_key, populated_user.clone(), client_custom_data)
+                .await;
         if bucketed_config.is_err() {
             return Err(bucketed_config.err().unwrap());
         }
@@ -294,11 +302,109 @@ impl EventQueue {
         event.event.feature_vars = bucketed_config?.feature_variation_map;
 
         if event.event.event_type == EventType::CustomEvent {
-            event.event.user_id = event.user.user_id
+            event.event.user_id = event.user.user_id.clone();
         }
 
-        self.queue_access_mutex.lock();
+        let _guard = self.queue_access_mutex.lock().await;
+
+        // Add event to user event queue
+        let user_id = event.user.user_id.clone();
+        self.user_event_queue
+            .entry(user_id)
+            .or_insert_with(|| UserEventsBatchRecord {
+                user: populated_user,
+                events: Vec::new(),
+            })
+            .events
+            .push(event.event);
+
+        self.user_event_queue_count += 1;
 
         return Ok(true);
+    }
+
+    pub(crate) async fn process_aggregate_event(
+        &mut self,
+        agg_event_queue_raw_message: AggEventQueueRawMessage,
+    ) {
+        let _guard = self.queue_access_mutex.lock().await;
+
+        let event_type = agg_event_queue_raw_message.event_type.clone();
+        let variable_key = agg_event_queue_raw_message.variable_key;
+        let feature_id = agg_event_queue_raw_message.feature_id;
+        let variation_id = agg_event_queue_raw_message.variation_id;
+        let eval_metadata = agg_event_queue_raw_message.eval_metadata;
+
+        if event_type == EventType::AggregateVariableEvaluated {
+            // Get or create the nested structure and update counts directly
+            let eval_reasons = self
+                .agg_event_queue
+                .entry(event_type)
+                .or_insert_with(HashMap::new)
+                .entry(variable_key)
+                .or_insert_with(HashMap::new)
+                .entry(feature_id)
+                .or_insert_with(HashMap::new)
+                .entry(variation_id)
+                .or_insert_with(HashMap::new);
+
+            for (reason, count) in eval_metadata {
+                *eval_reasons.entry(reason).or_insert(0) += count;
+            }
+        } else {
+            // For defaulted events, use "default" as both feature_id and variation_id keys
+            let default_key = "default".to_string();
+
+            let default_reasons = self
+                .agg_event_queue
+                .entry(event_type)
+                .or_insert_with(HashMap::new)
+                .entry(variable_key)
+                .or_insert_with(HashMap::new)
+                .entry(default_key.clone())
+                .or_insert_with(HashMap::new)
+                .entry(default_key)
+                .or_insert_with(HashMap::new);
+
+            for (reason, count) in eval_metadata {
+                *default_reasons.entry(reason).or_insert(0) += count;
+            }
+        }
+    }
+
+    pub(crate) async fn process_events(
+        &mut self,
+        mut shutdown: tokio::sync::watch::Receiver<bool>,
+    ) {
+        loop {
+            tokio::select! {
+                _ = shutdown.changed() => {
+                    // Context is cancelled, exit the loop
+                    return;
+                }
+                user_event = self.user_event_queue_raw_rx.recv() => {
+                    match user_event {
+                        Some(event) => unsafe{
+                            let _ = self.process_user_events(event).await;
+                        }
+                        None => {
+                            // Channel closed
+                            return;
+                        }
+                    }
+                }
+                agg_event = self.agg_event_queue_raw_rx.recv() => {
+                    match agg_event {
+                        Some(event) => {
+                            self.process_aggregate_event(event).await;
+                        }
+                        None => {
+                            // Channel closed
+                            return;
+                        }
+                    }
+                }
+            }
+        }
     }
 }

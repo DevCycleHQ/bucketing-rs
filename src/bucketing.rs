@@ -2,8 +2,10 @@ use crate::config::*;
 use crate::configmanager;
 use crate::constants;
 use crate::errors;
+use crate::errors::bucket_result_error_to_default_reason;
 use crate::errors::{missing_config, missing_variation, DevCycleError};
 use crate::event::{EvalDetails, EvaluationReason};
+use crate::event_queue::EventQueue;
 use crate::feature::*;
 use crate::murmurhash::murmurhash;
 use crate::target::*;
@@ -13,6 +15,174 @@ use std::collections::HashMap;
 use std::ops::Sub;
 use std::ptr::null_mut;
 use std::sync::Arc;
+
+// Helper function to validate variable types
+fn is_variable_type_valid(actual_type: &str, expected_type: &str) -> bool {
+    // First check if the variable type is one of the valid types
+    if actual_type != constants::VARIABLE_TYPES_STRING
+        && actual_type != constants::VARIABLE_TYPES_NUMBER
+        && actual_type != constants::VARIABLE_TYPES_JSON
+        && actual_type != constants::VARIABLE_TYPES_BOOL
+    {
+        return false;
+    }
+    // Then check if it matches the expected type
+    if actual_type != expected_type {
+        return false;
+    }
+    true
+}
+
+// Helper function to generate bucketed variable for user
+async unsafe fn generate_bucketed_variable_for_user(
+    sdk_key: &str,
+    user: PopulatedUser,
+    variable_key: &str,
+    client_custom_data: HashMap<String, serde_json::Value>,
+) -> Result<
+    (String, serde_json::Value, String, String, EvaluationReason),
+    (DevCycleError, EvaluationReason),
+> {
+    // Get config (already returns Arc<ConfigBody> from the CONFIGS map)
+    let config = configmanager::CONFIGS.read().unwrap().get(sdk_key).cloned();
+
+    if config.is_none() {
+        eprintln!("Variable called before client initialized, returning default value");
+        return Err((errors::missing_config(), EvaluationReason::Error));
+    }
+
+    let config = config.unwrap();
+
+    // Get variable by key
+    let variable = config.get_variable_for_key(variable_key);
+    if variable.is_none() {
+        return Err((errors::missing_variable(), EvaluationReason::Disabled));
+    }
+    let variable = variable.unwrap();
+
+    // Get feature for variable
+    let feat_for_variable = config.get_feature_for_variable_id(&variable._id);
+    if feat_for_variable.is_none() {
+        return Err((errors::missing_feature(), EvaluationReason::Disabled));
+    }
+    let feat_for_variable = feat_for_variable.unwrap();
+
+    // Check if user qualifies for feature
+    let target_and_hashes = match does_user_qualify_for_feature(
+        &config,
+        feat_for_variable,
+        user.clone(),
+        client_custom_data,
+    ) {
+        Ok(th) => th,
+        Err(e) => return Err((e, EvaluationReason::Default)),
+    };
+
+    // Bucket user for variation
+    let (variation, is_random_distrib) =
+        match bucket_user_for_variation(feat_for_variable, target_and_hashes.clone()) {
+            Ok(v) => v,
+            Err(e) => return Err((e, EvaluationReason::Default)),
+        };
+
+    // Get variable from variation
+    let variation_variable = variation.get_variable_by_id(&variable._id);
+    if variation_variable.is_none() {
+        return Err((
+            errors::missing_variable_for_variation(),
+            EvaluationReason::Disabled,
+        ));
+    }
+    let variation_variable = variation_variable.unwrap();
+
+    // Determine evaluation reason
+    let eval_reason = if target_and_hashes.is_rollout || is_random_distrib {
+        EvaluationReason::Split
+    } else {
+        EvaluationReason::TargetingMatch
+    };
+
+    Ok((
+        variable._type.clone(),
+        variation_variable.value.clone(),
+        feat_for_variable._id.clone(),
+        variation._id.clone(),
+        eval_reason,
+    ))
+}
+
+pub async unsafe fn variable_for_user(
+    sdk_key: &str,
+    user: PopulatedUser,
+    variable_key: &str,
+    expected_variable_type: &str,
+    event_queue: &mut EventQueue,
+    client_custom_data: HashMap<String, serde_json::Value>,
+) -> Result<(String, serde_json::Value, String, EvaluationReason, String), DevCycleError> {
+    let result =
+        generate_bucketed_variable_for_user(sdk_key, user, variable_key, client_custom_data).await;
+
+    match result {
+        Ok((variable_type, variable_value, feature_id, variation_id, eval_reason)) => {
+            // Validate variable type
+            if !is_variable_type_valid(&variable_type, expected_variable_type)
+                && !expected_variable_type.is_empty()
+            {
+                let err = errors::invalid_variable_type();
+                let default_reason = bucket_result_error_to_default_reason(&err);
+
+                if let Err(event_err) = event_queue
+                    .queue_variable_defaulted_event(variable_key, "", "")
+                    .await
+                {
+                    eprintln!("Failed to queue variable defaulted event: {}", event_err);
+                }
+
+                return Err(err);
+            }
+
+            // Queue variable evaluated event
+            if let Err(event_err) = event_queue
+                .queue_variable_evaluated_event(
+                    variable_key,
+                    &feature_id,
+                    &variation_id,
+                    eval_reason.clone(),
+                )
+                .await
+            {
+                eprintln!("Failed to queue variable evaluated event: {}", event_err);
+            }
+
+            Ok((
+                variable_type,
+                variable_value,
+                feature_id,
+                eval_reason,
+                String::new(), // empty string when no error (NotDefaulted)
+            ))
+        }
+        Err((err, eval_reason)) => {
+            let default_reason = bucket_result_error_to_default_reason(&err);
+
+            if let Err(event_err) = event_queue
+                .queue_variable_defaulted_event(variable_key, "", "")
+                .await
+            {
+                eprintln!("Failed to queue variable defaulted event: {}", event_err);
+            }
+
+            // Return empty values with the evaluation reason from the error
+            Ok((
+                String::new(),
+                serde_json::Value::Null,
+                String::new(),
+                eval_reason,
+                default_reason.to_string(),
+            ))
+        }
+    }
+}
 
 pub(crate) fn determine_user_bucketing_value_for_target(
     target_bucketing_key: String,

@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use crate::{bucketing, EvaluationReason};
     use crate::config::*;
     use crate::configmanager;
     use crate::platform_data::{self, PlatformData};
     use crate::user::*;
+    use crate::{bucketing, EvaluationReason};
     use chrono::Utc;
     use serde_json;
     use serde_json::Value;
@@ -40,9 +40,17 @@ mod tests {
     }
 
     fn create_config_body_from_full_config(full_config: FullConfig) -> ConfigBody<'static> {
-        // Create static hashmaps for the lifetime requirements
+        // Parse audiences from the full config
+        let mut audiences_map: HashMap<String, crate::filters::NoIdAudience> = HashMap::new();
+        for (key, value) in full_config.audiences.iter() {
+            if let Ok(audience) =
+                serde_json::from_value::<crate::filters::NoIdAudience>(value.clone())
+            {
+                audiences_map.insert(key.clone(), audience);
+            }
+        }
         let static_audiences: &'static HashMap<String, crate::filters::NoIdAudience> =
-            Box::leak(Box::new(HashMap::new()));
+            Box::leak(Box::new(audiences_map));
 
         let mut variable_id_map = HashMap::new();
         let mut variable_key_map = HashMap::new();
@@ -858,5 +866,115 @@ mod tests {
         } else {
             panic!("Bucketed config should have variables object");
         }
+    }
+
+    #[tokio::test]
+    async fn test_variable_for_user() {
+        use crate::constants;
+        use crate::event_queue::{EventQueue, EventQueueOptions};
+        let sdk_key = "test-variable-for-user";
+
+        // Setup user with custom data matching the Go test
+        initialize_test_platform_data();
+
+        let mut custom_data: HashMap<String, Value> = HashMap::new();
+        custom_data.insert(
+            "favouriteDrink".to_string(),
+            Value::String("coffee".to_string()),
+        );
+        custom_data.insert(
+            "favouriteFood".to_string(),
+            Value::String("pizza".to_string()),
+        );
+        // Set platform data for this SDK key
+        let platform_data = PlatformData {
+            sdk_type: "server".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            platform_version: "1.0.0".to_string(),
+            device_model: "test-device".to_string(),
+            platform: "test".to_string(),
+            hostname: "localhost".to_string(),
+        };
+        platform_data::set_platform_data(sdk_key.to_string(), platform_data);
+
+        let user = PopulatedUser {
+            user_id: "CPopultest".to_string(),
+            email: "test@test.com".to_string(),
+            name: "Test User".to_string(),
+            language: "en".to_string(),
+            country: "US".to_string(),
+            app_version: "1.0.0".to_string(),
+            app_build: "100".to_string(),
+            custom_data,
+            private_custom_data: HashMap::new(),
+            device_model: "test-device".to_string(),
+            last_seen_date: Utc::now(),
+            platform_data: platform_data::get_platform_data(sdk_key).unwrap(),
+            created_date: Utc::now(),
+        };
+
+        // Setup test config v2 which contains experiment_var that this user qualifies for
+        setup_test_config_v2(sdk_key);
+
+        // Create event queue for testing
+        let event_queue_options = EventQueueOptions::default();
+        let mut event_queue = EventQueue::new(sdk_key.to_string(), event_queue_options)
+            .expect("Failed to create event queue");
+
+        let client_custom_data = HashMap::new();
+
+        // Test the variable_for_user function with experiment_var (String type)
+        let result = unsafe {
+            crate::bucketing::variable_for_user(
+                sdk_key,
+                user.clone(),
+                "experiment_var",
+                constants::VARIABLE_TYPES_STRING,
+                &mut event_queue,
+                client_custom_data,
+            )
+            .await
+        };
+
+        assert!(
+            result.is_ok(),
+            "variable_for_user should succeed: {:?}",
+            result.err()
+        );
+
+        let (variable_type, value, feature_id, eval_reason, eval_details) = result.unwrap();
+
+        // Verify the results
+        assert_eq!(
+            variable_type,
+            constants::VARIABLE_TYPES_STRING,
+            "Variable type should be String"
+        );
+        assert_eq!(
+            feature_id, "614ef8aa475928459060721d",
+            "Feature ID should match header-copy"
+        );
+
+        // The eval_reason should be either TargetingMatch or Split
+        assert!(
+            eval_reason == EvaluationReason::TargetingMatch
+                || eval_reason == EvaluationReason::Split,
+            "Eval reason should be TargetingMatch or Split, got: {:?}",
+            eval_reason
+        );
+
+        // Verify the string value is one of the possible values from the variations
+        let value_str = value.as_str().unwrap_or_else(|| {
+            panic!("Expected string value, got: {:?}", value);
+        });
+        // User can bucket into either "new-copy" variation (value "New!") or "old-copy" variation (value "default header")
+        assert!(
+            value_str == "New!" || value_str == "default header",
+            "Variable value should be either 'New!' or 'default header', got: {}",
+            value_str
+        );
+
+        // eval_details should be empty string when successful (NotDefaulted)
+        assert_eq!(eval_details, "", "eval_details should be empty on success");
     }
 }
