@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use crate::{bucketing, EvaluationReason};
     use crate::config::*;
     use crate::configmanager;
     use crate::platform_data::{self, PlatformData};
     use crate::user::*;
+    use crate::{bucketing, EvaluationReason};
     use chrono::Utc;
     use serde_json;
     use serde_json::Value;
@@ -43,7 +43,9 @@ mod tests {
         // Parse audiences from the full config
         let mut audiences_map: HashMap<String, crate::filters::NoIdAudience> = HashMap::new();
         for (key, value) in full_config.audiences.iter() {
-            if let Ok(audience) = serde_json::from_value::<crate::filters::NoIdAudience>(value.clone()) {
+            if let Ok(audience) =
+                serde_json::from_value::<crate::filters::NoIdAudience>(value.clone())
+            {
                 audiences_map.insert(key.clone(), audience);
             }
         }
@@ -868,16 +870,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_variable_for_user() {
-        use crate::event_queue::{EventQueue, EventQueueOptions};
         use crate::constants;
+        use crate::event_queue::{EventQueue, EventQueueOptions};
         let sdk_key = "test-variable-for-user";
 
         // Setup user with custom data matching the Go test
         initialize_test_platform_data();
 
         let mut custom_data: HashMap<String, Value> = HashMap::new();
-        custom_data.insert("favouriteDrink".to_string(), Value::String("coffee".to_string()));
-        custom_data.insert("favouriteFood".to_string(), Value::String("pizza".to_string()));
+        custom_data.insert(
+            "favouriteDrink".to_string(),
+            Value::String("coffee".to_string()),
+        );
+        custom_data.insert(
+            "favouriteFood".to_string(),
+            Value::String("pizza".to_string()),
+        );
         // Set platform data for this SDK key
         let platform_data = PlatformData {
             sdk_type: "server".to_string(),
@@ -908,7 +916,6 @@ mod tests {
         // Setup test config v2 which contains experiment_var that this user qualifies for
         setup_test_config_v2(sdk_key);
 
-
         // Create event queue for testing
         let event_queue_options = EventQueueOptions::default();
         let mut event_queue = EventQueue::new(sdk_key.to_string(), event_queue_options)
@@ -938,12 +945,20 @@ mod tests {
         let (variable_type, value, feature_id, eval_reason, eval_details) = result.unwrap();
 
         // Verify the results
-        assert_eq!(variable_type, constants::VARIABLE_TYPES_STRING, "Variable type should be String");
-        assert_eq!(feature_id, "614ef8aa475928459060721d", "Feature ID should match header-copy");
+        assert_eq!(
+            variable_type,
+            constants::VARIABLE_TYPES_STRING,
+            "Variable type should be String"
+        );
+        assert_eq!(
+            feature_id, "614ef8aa475928459060721d",
+            "Feature ID should match header-copy"
+        );
 
         // The eval_reason should be either TargetingMatch or Split
         assert!(
-            eval_reason == EvaluationReason::TargetingMatch || eval_reason == EvaluationReason::Split,
+            eval_reason == EvaluationReason::TargetingMatch
+                || eval_reason == EvaluationReason::Split,
             "Eval reason should be TargetingMatch or Split, got: {:?}",
             eval_reason
         );

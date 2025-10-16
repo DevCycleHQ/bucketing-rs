@@ -167,7 +167,7 @@ impl EventQueue {
     pub async fn queue_event(&mut self, user: User, event: Event) -> Result<bool, DevCycleError> {
         let success = self
             .user_event_queue_raw_tx
-            .send(UserEventData{ user, event })
+            .send(UserEventData { user, event })
             .await;
         if success.is_err() {
             self.events_dropped += 1;
@@ -286,7 +286,8 @@ impl EventQueue {
             client_custom_data.clone(),
         );
         let bucketed_config =
-            generate_bucketed_config(&self.sdk_key, populated_user.clone(), client_custom_data).await;
+            generate_bucketed_config(&self.sdk_key, populated_user.clone(), client_custom_data)
+                .await;
         if bucketed_config.is_err() {
             return Err(bucketed_config.err().unwrap());
         }
@@ -315,7 +316,10 @@ impl EventQueue {
         return Ok(true);
     }
 
-    pub(crate) async fn process_aggregate_event(&mut self, agg_event_queue_raw_message: AggEventQueueRawMessage) {
+    pub(crate) async fn process_aggregate_event(
+        &mut self,
+        agg_event_queue_raw_message: AggEventQueueRawMessage,
+    ) {
         let _guard = self.queue_access_mutex.lock().await;
 
         let event_type = agg_event_queue_raw_message.event_type.clone();
@@ -326,7 +330,8 @@ impl EventQueue {
 
         if event_type == EventType::AggregateVariableEvaluated {
             // Get or create the nested structure and update counts directly
-            let eval_reasons = self.agg_event_queue
+            let eval_reasons = self
+                .agg_event_queue
                 .entry(event_type)
                 .or_insert_with(HashMap::new)
                 .entry(variable_key)
@@ -343,7 +348,8 @@ impl EventQueue {
             // For defaulted events, use "default" as both feature_id and variation_id keys
             let default_key = "default".to_string();
 
-            let default_reasons = self.agg_event_queue
+            let default_reasons = self
+                .agg_event_queue
                 .entry(event_type)
                 .or_insert_with(HashMap::new)
                 .entry(variable_key)
@@ -359,7 +365,10 @@ impl EventQueue {
         }
     }
 
-    pub(crate) async fn process_events(&mut self, mut shutdown: tokio::sync::watch::Receiver<bool>) {
+    pub(crate) async fn process_events(
+        &mut self,
+        mut shutdown: tokio::sync::watch::Receiver<bool>,
+    ) {
         loop {
             tokio::select! {
                 _ = shutdown.changed() => {
