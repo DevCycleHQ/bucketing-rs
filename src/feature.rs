@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use crate::EvaluationReason;
 use crate::event::EvalDetails;
 use crate::target::Target;
+use crate::EvaluationReason;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VariationVariable {

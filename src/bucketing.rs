@@ -2,8 +2,10 @@ use crate::config::*;
 use crate::configmanager;
 use crate::constants;
 use crate::errors;
+use crate::errors::bucket_result_error_to_default_reason;
 use crate::errors::{missing_config, missing_variation, DevCycleError};
 use crate::event::{EvalDetails, EvaluationReason};
+use crate::event_queue::EventQueue;
 use crate::feature::*;
 use crate::murmurhash::murmurhash;
 use crate::target::*;
@@ -13,8 +15,6 @@ use std::collections::HashMap;
 use std::ops::Sub;
 use std::ptr::null_mut;
 use std::sync::Arc;
-use crate::event_queue::EventQueue;
-use crate::errors::bucket_result_error_to_default_reason;
 
 // Helper function to validate variable types
 fn is_variable_type_valid(actual_type: &str, expected_type: &str) -> bool {
@@ -39,13 +39,12 @@ async unsafe fn generate_bucketed_variable_for_user(
     user: PopulatedUser,
     variable_key: &str,
     client_custom_data: HashMap<String, serde_json::Value>,
-) -> Result<(String, serde_json::Value, String, String, EvaluationReason), (DevCycleError, EvaluationReason)> {
+) -> Result<
+    (String, serde_json::Value, String, String, EvaluationReason),
+    (DevCycleError, EvaluationReason),
+> {
     // Get config (already returns Arc<ConfigBody> from the CONFIGS map)
-    let config = configmanager::CONFIGS
-        .read()
-        .unwrap()
-        .get(sdk_key)
-        .cloned();
+    let config = configmanager::CONFIGS.read().unwrap().get(sdk_key).cloned();
 
     if config.is_none() {
         eprintln!("Variable called before client initialized, returning default value");
@@ -80,15 +79,19 @@ async unsafe fn generate_bucketed_variable_for_user(
     };
 
     // Bucket user for variation
-    let (variation, is_random_distrib) = match bucket_user_for_variation(feat_for_variable, target_and_hashes.clone()) {
-        Ok(v) => v,
-        Err(e) => return Err((e, EvaluationReason::Default)),
-    };
+    let (variation, is_random_distrib) =
+        match bucket_user_for_variation(feat_for_variable, target_and_hashes.clone()) {
+            Ok(v) => v,
+            Err(e) => return Err((e, EvaluationReason::Default)),
+        };
 
     // Get variable from variation
     let variation_variable = variation.get_variable_by_id(&variable._id);
     if variation_variable.is_none() {
-        return Err((errors::missing_variable_for_variation(), EvaluationReason::Disabled));
+        return Err((
+            errors::missing_variable_for_variation(),
+            EvaluationReason::Disabled,
+        ));
     }
     let variation_variable = variation_variable.unwrap();
 
@@ -115,23 +118,9 @@ pub async unsafe fn variable_for_user(
     expected_variable_type: &str,
     event_queue: &mut EventQueue,
     client_custom_data: HashMap<String, serde_json::Value>,
-) -> Result<
-    (
-        String,
-        serde_json::Value,
-        String,
-        EvaluationReason,
-        String,
-    ),
-    DevCycleError,
-> {
-    let result = generate_bucketed_variable_for_user(
-        sdk_key,
-        user,
-        variable_key,
-        client_custom_data,
-    )
-    .await;
+) -> Result<(String, serde_json::Value, String, EvaluationReason, String), DevCycleError> {
+    let result =
+        generate_bucketed_variable_for_user(sdk_key, user, variable_key, client_custom_data).await;
 
     match result {
         Ok((variable_type, variable_value, feature_id, variation_id, eval_reason)) => {
