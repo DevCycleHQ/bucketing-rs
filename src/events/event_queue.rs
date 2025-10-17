@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
+#[derive(Clone)]
 pub struct EventQueueOptions {
     pub flush_events_interval: Duration,
     pub disable_automatic_event_logging: bool,
