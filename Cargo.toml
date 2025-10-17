@@ -28,6 +28,9 @@ console_error_panic_hook = { version = "0.1", optional = true }
 # FFI-specific dependencies
 libc = { version = "0.2", optional = true }
 
+[dev-dependencies]
+criterion = { version = "0.5", features = ["async_tokio"] }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Use wasm-compatible alternatives when targeting WASM
 reqwest = { version = "0.12.23", features = ["json"], default-features = false }
@@ -38,6 +41,11 @@ getrandom = { version = "0.2", features = ["js"] }
 default = []
 wasm = ["wasm-bindgen", "wasm-bindgen-futures", "serde-wasm-bindgen", "console_error_panic_hook"]
 ffi = ["libc"]
+
+[[bench]]
+name = "bucketing_benchmarks"
+harness = false
+path = "src/bucketing/bucketing_benches.rs"
 
 [profile.release]
 # Optimize for size when building WASM
