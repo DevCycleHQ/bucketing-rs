@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 cfg_if::cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
+    if #[cfg(target_family = "wasm")] {
         fn resolve_hostname() -> String {
             std::env::var("HOSTNAME")
                 .unwrap_or_else(|_| "unknown".to_string())

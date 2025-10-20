@@ -29,13 +29,13 @@ libc = { version = "0.2", optional = true }
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio"] }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-# Use wasm-compatible alternatives when targeting WASM
+[target.'cfg(target_family = "wasm")'.dependencies]
+# Use wasm-compatible alternatives when targeting WASM (wasm32-unknown-unknown, wasm32-wasi, etc.)
 reqwest = { version = "0.12.23", features = ["json"], default-features = false }
 tokio = { version = "1.0", features = ["sync", "macros", "rt"] }
 getrandom = { version = "0.2", features = ["js"] }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
 reqwest = { version = "0.12.23", features = ["json"] }
 tokio = { version = "1.0", features = ["full"] }
 hostname = "0.4"
