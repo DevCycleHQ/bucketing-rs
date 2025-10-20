@@ -34,6 +34,7 @@ pub use util::murmurhash;
 pub use platform_data::{get_platform_data, set_platform_data, PlatformData};
 
 // Export evaluation reason types for external use
+use crate::bucketing::bucketing::VariableForUserResult;
 use crate::events::EventQueueOptions;
 pub use event::{DefaultReason, EvalDetails, EvaluationReason};
 
@@ -41,7 +42,7 @@ pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
 
-pub async unsafe fn generate_bucketed_config(
+pub async fn generate_bucketed_config(
     sdk_key: &str,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
@@ -57,6 +58,23 @@ pub async fn generate_bucketed_config_from_user(
     let populated_user = user.get_populated_user(sdk_key);
     bucketing::generate_bucketed_config(sdk_key.to_string(), populated_user, client_custom_data)
         .await
+}
+
+pub async fn variable_for_user(
+    sdk_key: &str,
+    user: PopulatedUser,
+    variable_key: &str,
+    variable_type: &str,
+    client_custom_data: HashMap<String, serde_json::Value>,
+) -> Result<VariableForUserResult, DevCycleError> {
+    bucketing::variable_for_user(
+        sdk_key,
+        user,
+        variable_key,
+        variable_type,
+        client_custom_data,
+    )
+    .await
 }
 
 pub async fn init_event_queue(

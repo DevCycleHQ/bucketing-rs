@@ -942,30 +942,31 @@ mod tests {
             result.err()
         );
 
-        let (variable_type, value, feature_id, eval_reason, eval_details) = result.unwrap();
+        let resp = result.unwrap();
 
         // Verify the results
         assert_eq!(
-            variable_type,
+            resp.variable_type,
             constants::VARIABLE_TYPES_STRING,
             "Variable type should be String"
         );
         assert_eq!(
-            feature_id, "614ef8aa475928459060721d",
+            resp.feature_id, "614ef8aa475928459060721d",
             "Feature ID should match header-copy"
         );
 
         // The eval_reason should be either TargetingMatch or Split
         assert!(
-            eval_reason == EvaluationReason::TargetingMatch
-                || eval_reason == EvaluationReason::Split,
+            resp.eval_reason.is_ok()
+                && (resp.eval_reason.as_ref().unwrap() == &EvaluationReason::TargetingMatch
+                    || resp.eval_reason.as_ref().unwrap() == &EvaluationReason::Split),
             "Eval reason should be TargetingMatch or Split, got: {:?}",
-            eval_reason
+            resp.eval_reason
         );
 
         // Verify the string value is one of the possible values from the variations
-        let value_str = value.as_str().unwrap_or_else(|| {
-            panic!("Expected string value, got: {:?}", value);
+        let value_str = resp.variable_value.as_str().unwrap_or_else(|| {
+            panic!("Expected string value, got: {:?}", resp.variable_value);
         });
         // User can bucket into either "new-copy" variation (value "New!") or "old-copy" variation (value "default header")
         assert!(
@@ -975,6 +976,10 @@ mod tests {
         );
 
         // eval_details should be empty string when successful (NotDefaulted)
-        assert_eq!(eval_details, "", "eval_details should be empty on success");
+        assert_eq!(
+            resp.eval_reason.is_ok(),
+            true,
+            "eval_details should be empty on success"
+        );
     }
 }

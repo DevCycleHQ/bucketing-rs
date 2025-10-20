@@ -32,7 +32,7 @@ fn is_variable_type_valid(actual_type: &str, expected_type: &str) -> bool {
 }
 
 // Helper function to generate bucketed variable for user
-async unsafe fn generate_bucketed_variable_for_user(
+async fn generate_bucketed_variable_for_user(
     sdk_key: &str,
     user: PopulatedUser,
     variable_key: &str,
@@ -108,13 +108,21 @@ async unsafe fn generate_bucketed_variable_for_user(
     ))
 }
 
-pub async unsafe fn variable_for_user(
+pub struct VariableForUserResult {
+    pub variable_type: String,
+    pub variable_value: serde_json::Value,
+    pub feature_id: String,
+    pub variation_id: String,
+    pub eval_reason: Result<EvaluationReason, DevCycleError>,
+}
+
+pub async fn variable_for_user(
     sdk_key: &str,
     user: PopulatedUser,
     variable_key: &str,
     expected_variable_type: &str,
     client_custom_data: HashMap<String, serde_json::Value>,
-) -> Result<(String, serde_json::Value, String, EvaluationReason, String), DevCycleError> {
+) -> Result<VariableForUserResult, DevCycleError> {
     let result =
         generate_bucketed_variable_for_user(sdk_key, user, variable_key, client_custom_data).await;
     let event_queue = match crate::events::event_queue_manager::get_event_queue(sdk_key) {
@@ -155,13 +163,13 @@ pub async unsafe fn variable_for_user(
                 eprintln!("Failed to queue variable evaluated event: {}", event_err);
             }
 
-            Ok((
+            Ok(VariableForUserResult {
                 variable_type,
+                variation_id,
                 variable_value,
                 feature_id,
-                eval_reason,
-                String::new(), // empty string when no error (NotDefaulted)
-            ))
+                eval_reason: Ok(eval_reason),
+            })
         }
         Err((err, eval_reason)) => {
             let default_reason = bucket_result_error_to_default_reason(&err);
@@ -174,13 +182,13 @@ pub async unsafe fn variable_for_user(
             }
 
             // Return empty values with the evaluation reason from the error
-            Ok((
-                String::new(),
-                serde_json::Value::Null,
-                String::new(),
-                eval_reason,
-                default_reason.to_string(),
-            ))
+            Ok(VariableForUserResult {
+                variable_type: String::new(),
+                variable_value: serde_json::Value::Null,
+                variation_id: String::new(),
+                eval_reason: Err(err),
+                feature_id: String::new(),
+            })
         }
     }
 }
