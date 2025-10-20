@@ -1,0 +1,21 @@
+language = "C"
+include_guard = "DEVCYCLE_BUCKETING_H"
+autogen_warning = "/* Warning: This file is auto-generated. Do not modify. */"
+include_version = true
+namespace = "devcycle"
+cpp_compat = true
+style = "both"
+
+[export]
+include = ["devcycle_*"]
+
+[export.rename]
+
+[parse]
+parse_deps = false
+include = ["devcycle-bucketing-rs"]
+
+[parse.expand]
+crates = ["devcycle-bucketing-rs"]
+features = ["ffi"]
+

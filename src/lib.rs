@@ -10,6 +10,14 @@ pub mod segmentation;
 pub mod user;
 pub mod util;
 
+// FFI bindings for C library support
+#[cfg(feature = "ffi")]
+pub mod ffi;
+
+// WASM bindings for WebAssembly support
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 // Re-export commonly used items from submodules
 pub use config::configmanager;
 pub use config::feature;

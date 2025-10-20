@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) enum EventType {
+pub enum EventType {
     AggregateVariableEvaluated,
     AggregateVariableDefaulted,
     VariableEvaluated,
