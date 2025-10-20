@@ -8,6 +8,7 @@ mod tests {
     use crate::user::User;
     use chrono::Utc;
     use std::collections::HashMap;
+    use std::sync::atomic::Ordering;
     use std::time::Duration;
     use tokio::time::sleep;
 
@@ -315,7 +316,7 @@ mod tests {
         // Must have errored on the 4th event
         assert!(has_errored, "Expected an error when the queue is full");
         assert!(
-            eq.events_dropped > 0,
+            eq.events_dropped.load(Ordering::Relaxed) > 0,
             "Expected events_dropped counter to be incremented"
         );
     }
@@ -354,7 +355,7 @@ mod tests {
         sleep(Duration::from_millis(100)).await;
 
         // Verify events were queued
-        assert_eq!(eq.events_dropped, 0);
+        assert_eq!(eq.events_dropped.load(Ordering::Relaxed), 0);
     }
 
     #[tokio::test]
@@ -368,9 +369,9 @@ mod tests {
         assert!(result.is_ok());
         let eq = result.unwrap();
         assert_eq!(eq.sdk_key, sdk_key);
-        assert_eq!(eq.events_flushed, 0);
-        assert_eq!(eq.events_dropped, 0);
-        assert_eq!(eq.events_reported, 0);
+        assert_eq!(eq.events_flushed.load(Ordering::Relaxed), 0);
+        assert_eq!(eq.events_dropped.load(Ordering::Relaxed), 0);
+        assert_eq!(eq.events_reported.load(Ordering::Relaxed), 0);
     }
 
     #[tokio::test]

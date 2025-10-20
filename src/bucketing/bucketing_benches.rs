@@ -3,6 +3,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use devcycle_bucketing_rs::bucketing::generate_bucketed_config;
 use devcycle_bucketing_rs::bucketing::variable_for_user;
 use devcycle_bucketing_rs::events::event_queue::{EventQueue, EventQueueOptions};
+use devcycle_bucketing_rs::init_event_queue;
 use devcycle_bucketing_rs::platform_data::{get_platform_data, set_platform_data, PlatformData};
 use devcycle_bucketing_rs::user::PopulatedUser;
 use serde_json::Value;
@@ -272,9 +273,6 @@ fn bench_variable_for_user(c: &mut Criterion) {
             runtime.block_on(async {
                 let user = create_test_user("bench_var_user");
                 let client_custom_data = HashMap::new();
-                let mut event_queue =
-                    EventQueue::new(BENCH_SDK_KEY.to_string(), EventQueueOptions::default())
-                        .unwrap();
 
                 unsafe {
                     variable_for_user(
@@ -282,7 +280,6 @@ fn bench_variable_for_user(c: &mut Criterion) {
                         user,
                         "test_variable",
                         "String",
-                        &mut event_queue,
                         client_custom_data,
                     )
                     .await
@@ -298,9 +295,6 @@ fn bench_variable_for_user(c: &mut Criterion) {
             runtime.block_on(async {
                 let user = create_test_user_with_custom_data("bench_var_user_custom");
                 let client_custom_data = HashMap::new();
-                let mut event_queue =
-                    EventQueue::new(BENCH_SDK_KEY.to_string(), EventQueueOptions::default())
-                        .unwrap();
 
                 unsafe {
                     variable_for_user(
@@ -308,7 +302,6 @@ fn bench_variable_for_user(c: &mut Criterion) {
                         user,
                         "test_variable",
                         "String",
-                        &mut event_queue,
                         client_custom_data,
                     )
                     .await
@@ -332,6 +325,10 @@ fn bench_variable_for_user(c: &mut Criterion) {
                         )
                         .unwrap();
 
+                        init_event_queue(BENCH_SDK_KEY.clone(), EventQueueOptions::default())
+                            .await
+                            .unwrap();
+
                         for i in 0..count {
                             let user = create_test_user(&format!("bench_var_user_{}", i));
                             let client_custom_data = HashMap::new();
@@ -342,7 +339,6 @@ fn bench_variable_for_user(c: &mut Criterion) {
                                     user,
                                     "test_variable",
                                     "String",
-                                    &mut event_queue,
                                     client_custom_data,
                                 )
                                 .await

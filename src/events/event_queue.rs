@@ -6,6 +6,7 @@ use crate::platform_data::PlatformData;
 use crate::segmentation::client_custom_data::get_client_custom_data;
 use crate::user::{PopulatedUser, User};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -57,9 +58,9 @@ pub struct EventQueue {
     pub(crate) user_event_queue: UserEventQueue,
     pub(crate) user_event_queue_count: i32,
     pub(crate) queue_access_mutex: tokio::sync::Mutex<()>,
-    pub(crate) events_flushed: i64,
-    pub(crate) events_dropped: i64,
-    pub(crate) events_reported: i64,
+    pub(crate) events_flushed: AtomicI64,
+    pub(crate) events_dropped: AtomicI64,
+    pub(crate) events_reported: AtomicI64,
     pub(crate) options: EventQueueOptions,
 }
 
@@ -83,15 +84,15 @@ impl EventQueue {
             user_event_queue: HashMap::new(),
             user_event_queue_count: 0,
             queue_access_mutex: tokio::sync::Mutex::new(()),
-            events_flushed: 0,
-            events_dropped: 0,
-            events_reported: 0,
+            events_flushed: AtomicI64::new(0),
+            events_dropped: AtomicI64::new(0),
+            events_reported: AtomicI64::new(0),
             options: event_queue_options,
         })
     }
 
     pub async fn queue_variable_evaluated_event(
-        &mut self,
+        &self,
         variable_key: &str,
         feature_id: &str,
         variation_id: &str,
@@ -109,7 +110,7 @@ impl EventQueue {
     }
 
     pub async fn queue_variable_defaulted_event(
-        &mut self,
+        &self,
         variable_key: &str,
         feature_id: &str,
         variation_id: &str,
@@ -126,7 +127,7 @@ impl EventQueue {
     }
 
     async fn queue_aggregate_event_internal(
-        &mut self,
+        &self,
         variable_key: &str,
         feature_id: &str,
         variation_id: &str,
@@ -159,7 +160,7 @@ impl EventQueue {
             });
 
         if success.is_err() {
-            self.events_dropped += 1;
+            self.events_dropped.fetch_add(1, Ordering::Relaxed);
             return Err(DevCycleError::new(&format!(
                 "dropping event, queue is full: {}",
                 success.unwrap_err()
@@ -168,13 +169,13 @@ impl EventQueue {
         return Ok(true);
     }
 
-    pub async fn queue_event(&mut self, user: User, event: Event) -> Result<bool, DevCycleError> {
+    pub async fn queue_event(&self, user: User, event: Event) -> Result<bool, DevCycleError> {
         let success = self
             .user_event_queue_raw_tx
             .try_send(UserEventData { user, event });
 
         if success.is_err() {
-            self.events_dropped += 1;
+            self.events_dropped.fetch_add(1, Ordering::Relaxed);
             return Err(DevCycleError::new(&format!(
                 "dropping event, queue is full: {}",
                 success.unwrap_err()

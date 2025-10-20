@@ -5,8 +5,6 @@ use crate::errors;
 use crate::errors::bucket_result_error_to_default_reason;
 use crate::errors::{missing_config, missing_variation, DevCycleError};
 use crate::events::event::{EvalDetails, EvaluationReason};
-use crate::events::event_queue::EventQueue;
-use crate::feature::*;
 use crate::murmurhash::murmurhash;
 use crate::target::*;
 use crate::target::{Rollout, RolloutStage};
@@ -44,7 +42,7 @@ async unsafe fn generate_bucketed_variable_for_user(
     (DevCycleError, EvaluationReason),
 > {
     // Get config (already returns Arc<ConfigBody> from the CONFIGS map)
-    let config = configmanager::CONFIGS.read().unwrap().get(sdk_key).cloned();
+    let config = configmanager::get_config(sdk_key);
 
     if config.is_none() {
         eprintln!("Variable called before client initialized, returning default value");
@@ -52,7 +50,6 @@ async unsafe fn generate_bucketed_variable_for_user(
     }
 
     let config = config.unwrap();
-
     // Get variable by key
     let variable = config.get_variable_for_key(variable_key);
     if variable.is_none() {
@@ -116,12 +113,17 @@ pub async unsafe fn variable_for_user(
     user: PopulatedUser,
     variable_key: &str,
     expected_variable_type: &str,
-    event_queue: &mut EventQueue,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<(String, serde_json::Value, String, EvaluationReason, String), DevCycleError> {
     let result =
         generate_bucketed_variable_for_user(sdk_key, user, variable_key, client_custom_data).await;
-
+    let event_queue = match crate::events::event_queue_manager::get_event_queue(sdk_key) {
+        Some(eq) => eq,
+        None => {
+            eprintln!("Event queue not initialized for SDK key: {}", sdk_key);
+            return Err(errors::event_queue_not_initialized());
+        }
+    };
     match result {
         Ok((variable_type, variable_value, feature_id, variation_id, eval_reason)) => {
             // Validate variable type
@@ -129,7 +131,6 @@ pub async unsafe fn variable_for_user(
                 && !expected_variable_type.is_empty()
             {
                 let err = errors::invalid_variable_type();
-                let default_reason = bucket_result_error_to_default_reason(&err);
 
                 if let Err(event_err) = event_queue
                     .queue_variable_defaulted_event(variable_key, "", "")
@@ -282,7 +283,7 @@ pub(crate) fn get_current_rollout_percentage(
     }
 }
 
-pub(crate) unsafe fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_hash: f64) -> bool {
+pub(crate) fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_hash: f64) -> bool {
     match rollout {
         Some(r) => {
             let current_rollout_percentage = get_current_rollout_percentage(r, chrono::Utc::now());
@@ -292,7 +293,7 @@ pub(crate) unsafe fn does_user_pass_rollout(rollout: Option<Rollout>, bounded_ha
     }
 }
 
-pub(crate) unsafe fn evaluate_segmentation_for_feature(
+pub(crate) fn evaluate_segmentation_for_feature(
     config: &ConfigBody,
     feature: &ConfigFeature,
     mut user: PopulatedUser,
@@ -333,7 +334,7 @@ pub(crate) fn is_user_in_rollout(rollout: Rollout, bounded_hash: f64) -> bool {
     return rollout_percentage != 0.0 && (bounded_hash <= rollout_percentage);
 }
 
-pub(crate) unsafe fn does_user_qualify_for_feature(
+pub(crate) fn does_user_qualify_for_feature(
     config: &Arc<ConfigBody>,
     feature: &ConfigFeature,
     user: PopulatedUser,
@@ -383,7 +384,7 @@ pub(crate) fn bucket_user_for_variation(
     }
     Err(missing_variation())
 }
-pub async unsafe fn generate_bucketed_config(
+pub async fn generate_bucketed_config(
     sdk_key: String,
     user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,

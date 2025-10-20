@@ -8,7 +8,7 @@ pub(crate) static EVENT_QUEUES: Lazy<RwLock<HashMap<String, Arc<EventQueue>>>> =
 
 pub(crate) fn get_event_queue(sdk_key: &str) -> Option<Arc<EventQueue>> {
     let configs = EVENT_QUEUES.read().expect("EVENT_QUEUES RwLock poisoned");
-    configs.get(sdk_key).cloned() // Clones the Arc, not the ConfigBody
+    configs.get(sdk_key).cloned() // Clones the Arc, not the EventQueue
 }
 
 pub(crate) fn set_event_queue(sdk_key: &str, config: EventQueue) {

@@ -49,7 +49,7 @@ pub async unsafe fn generate_bucketed_config(
     bucketing::generate_bucketed_config(sdk_key.to_string(), user, client_custom_data).await
 }
 
-pub async unsafe fn generate_bucketed_config_from_user(
+pub async fn generate_bucketed_config_from_user(
     sdk_key: &str,
     user: User,
     client_custom_data: HashMap<String, serde_json::Value>,
@@ -59,7 +59,7 @@ pub async unsafe fn generate_bucketed_config_from_user(
         .await
 }
 
-pub async unsafe fn init_event_queue(
+pub async fn init_event_queue(
     sdk_key: &str,
     event_queue_options: EventQueueOptions,
 ) -> Result<(), DevCycleError> {

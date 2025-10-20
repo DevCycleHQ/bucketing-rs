@@ -99,3 +99,7 @@ pub fn bucket_result_error_to_default_reason(err: &DevCycleError) -> DefaultReas
         _ => DefaultReason::Unknown,
     }
 }
+
+pub(crate) fn event_queue_not_initialized() -> DevCycleError {
+    return DevCycleError::new("Event queue not initialized");
+}

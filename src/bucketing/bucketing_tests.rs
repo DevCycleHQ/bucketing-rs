@@ -925,12 +925,11 @@ mod tests {
 
         // Test the variable_for_user function with experiment_var (String type)
         let result = unsafe {
-            crate::bucketing::variable_for_user(
+            bucketing::variable_for_user(
                 sdk_key,
                 user.clone(),
                 "experiment_var",
                 constants::VARIABLE_TYPES_STRING,
-                &mut event_queue,
                 client_custom_data,
             )
             .await
