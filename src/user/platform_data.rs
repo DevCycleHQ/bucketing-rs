@@ -3,6 +3,23 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+cfg_if::cfg_if! {
+    if #[cfg(target_arch = "wasm32")] {
+        fn resolve_hostname() -> String {
+            std::env::var("HOSTNAME")
+                .unwrap_or_else(|_| "unknown".to_string())
+        }
+    } else {
+        fn resolve_hostname() -> String {
+            hostname::get()
+                .ok()
+                .and_then(|h| h.into_string().ok())
+                .or_else(|| std::env::var("HOSTNAME").ok())
+                .unwrap_or_else(|| "unknown".to_string())
+        }
+    }
+}
+
 // Global platform data storage per SDK key
 pub(crate) static PLATFORM_DATA: Lazy<RwLock<HashMap<String, Arc<PlatformData>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
@@ -19,18 +36,13 @@ pub struct PlatformData {
 
 impl PlatformData {
     pub fn generate() -> Self {
-        let hostname = hostname::get()
-            .ok()
-            .and_then(|h| h.into_string().ok())
-            .unwrap_or_else(|| "unknown".to_string());
-
         PlatformData {
             sdk_type: "server".to_string(),
             sdk_version: env!("CARGO_PKG_VERSION").to_string(),
             platform_version: std::env::consts::OS.to_string(),
             device_model: "unknown".to_string(),
             platform: "Rust".to_string(),
-            hostname,
+            hostname: resolve_hostname(),
         }
     }
 }
