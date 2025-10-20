@@ -46,7 +46,7 @@ impl Default for EventQueueOptions {
     }
 }
 
-pub(crate) struct EventQueue {
+pub struct EventQueue {
     pub(crate) sdk_key: String,
     pub(crate) platform_data: Arc<PlatformData>,
     pub(crate) agg_event_queue_raw_tx: mpsc::Sender<AggEventQueueRawMessage>,
