@@ -1,9 +1,9 @@
 // WebAssembly bindings using wasm-bindgen
 #![cfg(feature = "wasm")]
 
-use crate::errors::DevCycleError;
 use crate::events::EventQueueOptions;
-use crate::user::{BucketedUserConfig, PopulatedUser, User};
+use crate::user::platform_data::PlatformData;
+use crate::user::{PopulatedUser, User};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -96,6 +96,47 @@ impl From<WasmEventQueueOptions> for EventQueueOptions {
             events_api_base_uri: wasm_opts.events_api_base_uri,
         }
     }
+}
+
+/// Set platform data for SDK key from JSON string
+#[wasm_bindgen]
+pub fn set_platform_data(sdk_key: String, platform_data_json: String) -> Result<(), JsValue> {
+    let platform_data: PlatformData = serde_json::from_str(&platform_data_json)
+        .map_err(|e| JsValue::from_str(&format!("Invalid platform data JSON: {:?}", e)))?;
+
+    crate::user::platform_data::set_platform_data(sdk_key, platform_data);
+    Ok(())
+}
+
+/// Set config data for SDK key from JSON string
+#[wasm_bindgen]
+pub fn set_config_data(sdk_key: String, config_json: String) -> Result<(), JsValue> {
+    let full_config: crate::config::FullConfig = serde_json::from_str(&config_json)
+        .map_err(|e| JsValue::from_str(&format!("Invalid config JSON: {:?}", e)))?;
+
+    let config_body = crate::config::ConfigBody::from_full_config(full_config);
+    crate::configmanager::set_config(&sdk_key, config_body);
+    Ok(())
+}
+
+/// Check if config data exists for SDK key
+#[wasm_bindgen]
+pub fn has_config_data(sdk_key: String) -> bool {
+    crate::configmanager::has_config(&sdk_key)
+}
+
+/// Set client custom data for SDK key from JSON string
+#[wasm_bindgen]
+pub fn set_client_custom_data(
+    sdk_key: String,
+    client_custom_data_json: String,
+) -> Result<(), JsValue> {
+    let client_custom_data: HashMap<String, serde_json::Value> =
+        serde_json::from_str(&client_custom_data_json)
+            .map_err(|e| JsValue::from_str(&format!("Invalid client custom data JSON: {:?}", e)))?;
+
+    crate::segmentation::client_custom_data::set_client_custom_data(sdk_key, client_custom_data);
+    Ok(())
 }
 
 /// Initialize event queue
