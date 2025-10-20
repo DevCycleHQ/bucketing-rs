@@ -120,17 +120,17 @@ pub async fn init_event_queue(
 pub async fn generate_bucketed_config_from_user(
     sdk_key: String,
     user_json: JsValue,
-    client_custom_data_json: Option<JsValue>,
+    client_custom_data_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     let user: User = serde_wasm_bindgen::from_value(user_json)
         .map_err(|e| JsValue::from_str(&format!("Invalid user JSON: {:?}", e)))?;
 
     let client_custom_data: HashMap<String, serde_json::Value> =
-        if let Some(data) = client_custom_data_json {
-            serde_wasm_bindgen::from_value(data)
-                .map_err(|e| JsValue::from_str(&format!("Invalid client custom data: {:?}", e)))?
-        } else {
+        if client_custom_data_json.is_undefined() || client_custom_data_json.is_null() {
             HashMap::new()
+        } else {
+            serde_wasm_bindgen::from_value(client_custom_data_json)
+                .map_err(|e| JsValue::from_str(&format!("Invalid client custom data: {:?}", e)))?
         };
 
     unsafe {
@@ -150,17 +150,17 @@ pub async fn generate_bucketed_config_from_user(
 pub async fn generate_bucketed_config(
     sdk_key: String,
     populated_user_json: JsValue,
-    client_custom_data_json: Option<JsValue>,
+    client_custom_data_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     let populated_user: PopulatedUser = serde_wasm_bindgen::from_value(populated_user_json)
         .map_err(|e| JsValue::from_str(&format!("Invalid populated user JSON: {:?}", e)))?;
 
     let client_custom_data: HashMap<String, serde_json::Value> =
-        if let Some(data) = client_custom_data_json {
-            serde_wasm_bindgen::from_value(data)
-                .map_err(|e| JsValue::from_str(&format!("Invalid client custom data: {:?}", e)))?
-        } else {
+        if client_custom_data_json.is_undefined() || client_custom_data_json.is_null() {
             HashMap::new()
+        } else {
+            serde_wasm_bindgen::from_value(client_custom_data_json)
+                .map_err(|e| JsValue::from_str(&format!("Invalid client custom data: {:?}", e)))?
         };
 
     unsafe {
