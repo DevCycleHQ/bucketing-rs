@@ -871,7 +871,7 @@ mod tests {
     #[tokio::test]
     async fn test_variable_for_user() {
         use crate::constants;
-        use crate::events::event_queue::{EventQueue, EventQueueOptions};
+        use crate::events::event_queue::EventQueueOptions;
         let sdk_key = "test-variable-for-user";
 
         // Setup user with custom data matching the Go test
@@ -916,10 +916,11 @@ mod tests {
         // Setup test config v2 which contains experiment_var that this user qualifies for
         setup_test_config_v2(sdk_key);
 
-        // Create event queue for testing
+        // Initialize event queue for testing
         let event_queue_options = EventQueueOptions::default();
-        let mut event_queue = EventQueue::new(sdk_key.to_string(), event_queue_options)
-            .expect("Failed to create event queue");
+        crate::init_event_queue(sdk_key, event_queue_options)
+            .await
+            .expect("Failed to initialize event queue");
 
         let client_custom_data = HashMap::new();
 

@@ -2,7 +2,7 @@ use chrono::Utc;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use devcycle_bucketing_rs::bucketing::generate_bucketed_config;
 use devcycle_bucketing_rs::bucketing::variable_for_user;
-use devcycle_bucketing_rs::events::event_queue::{EventQueue, EventQueueOptions};
+use devcycle_bucketing_rs::events::event_queue::EventQueueOptions;
 use devcycle_bucketing_rs::init_event_queue;
 use devcycle_bucketing_rs::platform_data::{get_platform_data, set_platform_data, PlatformData};
 use devcycle_bucketing_rs::user::PopulatedUser;
@@ -319,12 +319,7 @@ fn bench_variable_for_user(c: &mut Criterion) {
             |b, &count| {
                 b.iter(|| {
                     runtime.block_on(async move {
-                        let mut event_queue = EventQueue::new(
-                            BENCH_SDK_KEY.to_string(),
-                            EventQueueOptions::default(),
-                        )
-                        .unwrap();
-
+                        // Initialize event queue via manager
                         init_event_queue(BENCH_SDK_KEY.clone(), EventQueueOptions::default())
                             .await
                             .unwrap();
