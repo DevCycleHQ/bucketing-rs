@@ -75,19 +75,22 @@ curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 ### Build for Web
 
 ```bash
-wasm-pack build --target web --features wasm --out-dir pkg-web
+wasm-pack build --target web --features wasm
+mv pkg pkg-web
 ```
 
 ### Build for Node.js
 
 ```bash
-wasm-pack build --target nodejs --features wasm --out-dir pkg-node
+wasm-pack build --target nodejs --features wasm
+mv pkg pkg-node
 ```
 
 ### Build for Bundlers (webpack, etc.)
 
 ```bash
-wasm-pack build --target bundler --features wasm --out-dir pkg-bundler
+wasm-pack build --target bundler --features wasm
+mv pkg pkg-bundler
 ```
 
 ### Using in JavaScript/TypeScript
@@ -157,10 +160,16 @@ cargo build --release
 cargo build --release --features ffi
 
 # WASM (web)
-wasm-pack build --target web --features wasm --out-dir pkg-web
+wasm-pack build --target web --features wasm
+mv pkg pkg-web
 
 # WASM (node)
-wasm-pack build --target nodejs --features wasm --out-dir pkg-node
+wasm-pack build --target nodejs --features wasm
+mv pkg pkg-node
+
+# WASM (bundler)
+wasm-pack build --target bundler --features wasm
+mv pkg pkg-bundler
 ```
 
 ## Testing

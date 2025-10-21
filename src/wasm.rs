@@ -9,6 +9,30 @@ use std::collections::HashMap;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 
+/// WASM-compatible EvalReason matching AssemblyScript SDKVariable
+#[derive(Clone, Serialize, Deserialize)]
+pub struct WasmEvalReason {
+    pub reason: String,
+    pub details: String,
+    #[serde(rename = "target_id")]
+    pub target_id: String,
+}
+
+/// WASM-compatible SDKVariable matching AssemblyScript SDKVariable
+#[derive(Clone, Serialize, Deserialize)]
+pub struct WasmSDKVariable {
+    #[serde(rename = "_id")]
+    pub id: String,
+    #[serde(rename = "type")]
+    pub variable_type: String,
+    pub key: String,
+    pub value: serde_json::Value,
+    #[serde(rename = "_feature", skip_serializing_if = "Option::is_none")]
+    pub feature: Option<String>,
+    #[serde(rename = "eval")]
+    pub eval_reason: WasmEvalReason,
+}
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -137,6 +161,83 @@ pub fn set_client_custom_data(
 
     crate::segmentation::client_custom_data::set_client_custom_data(sdk_key, client_custom_data);
     Ok(())
+}
+
+/// Get variable value for user (JSON input/output), returns stringified SDKVariable or null
+#[wasm_bindgen]
+pub async fn variable_for_user(
+    sdk_key: String,
+    user_json_str: String,
+    variable_key: String,
+    variable_type: String,
+) -> Result<JsValue, JsValue> {
+    // Parse user JSON
+    let user: User = serde_json::from_str(&user_json_str)
+        .map_err(|e| JsValue::from_str(&format!("Invalid user JSON: {:?}", e)))?;
+
+    // Convert to PopulatedUser
+    let populated_user = user.get_populated_user(&sdk_key);
+
+    // Get client_custom_data from global storage (or use empty if not set)
+    let client_custom_data = crate::segmentation::client_custom_data::CLIENT_CUSTOM_DATA
+        .read()
+        .unwrap()
+        .get(&sdk_key)
+        .cloned()
+        .unwrap_or_else(HashMap::new);
+
+    unsafe {
+        let result = crate::bucketing::variable_for_user(
+            &sdk_key,
+            populated_user,
+            &variable_key,
+            &variable_type,
+            client_custom_data,
+        )
+        .await;
+
+        match result {
+            Ok((
+                variable_id,
+                var_key,
+                var_type,
+                value,
+                feature_id,
+                eval_reason,
+                _default_reason,
+            )) => {
+                // Check if variable type matches expected type (matching AS behavior)
+                if !variable_type.is_empty() && var_type != variable_type {
+                    return Ok(JsValue::NULL);
+                }
+
+                // Construct SDKVariable matching AssemblyScript structure
+                let sdk_variable = WasmSDKVariable {
+                    id: variable_id,
+                    variable_type: var_type,
+                    key: var_key,
+                    value,
+                    feature: Some(feature_id),
+                    eval_reason: WasmEvalReason {
+                        reason: format!("{:?}", eval_reason),
+                        details: String::new(),
+                        target_id: String::new(),
+                    },
+                };
+
+                serde_wasm_bindgen::to_value(&sdk_variable).map_err(|e| {
+                    JsValue::from_str(&format!("Error serializing SDKVariable: {:?}", e))
+                })
+            }
+            Err(e) => {
+                // Throw error
+                Err(JsValue::from_str(&format!(
+                    "Error getting variable: {:?}",
+                    e
+                )))
+            }
+        }
+    }
 }
 
 /// Initialize event queue
