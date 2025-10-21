@@ -15,6 +15,7 @@ pub struct CBucketedUserConfig(BucketedUserConfig);
 pub struct CUser(User);
 pub struct CPopulatedUser(PopulatedUser);
 pub struct CEventQueueOptions(EventQueueOptions);
+pub struct CVariableForUserResult(crate::bucketing::bucketing::VariableForUserResult);
 
 /// Initialize event queue
 /// Returns 0 on success, non-zero on error
@@ -111,15 +112,9 @@ pub unsafe extern "C" fn devcycle_generate_bucketed_config_from_user(
 
     let user_obj = (*user).0.clone();
 
-    let client_custom_data: HashMap<String, serde_json::Value> =
-        if client_custom_data_json.is_null() {
-            HashMap::new()
-        } else {
-            match CStr::from_ptr(client_custom_data_json).to_str() {
-                Ok(json_str) => serde_json::from_str(json_str).unwrap_or_default(),
-                Err(_) => return ptr::null_mut(),
-            }
-        };
+    // Note: client_custom_data_json is ignored here because generate_bucketed_config_from_user
+    // retrieves client custom data internally. Use devcycle_set_client_custom_data first if needed.
+    let _ = client_custom_data_json; // Suppress unused parameter warning
 
     let runtime = match tokio::runtime::Runtime::new() {
         Ok(rt) => rt,
@@ -129,29 +124,180 @@ pub unsafe extern "C" fn devcycle_generate_bucketed_config_from_user(
     match runtime.block_on(crate::generate_bucketed_config_from_user(
         sdk_key_str,
         user_obj,
-        client_custom_data,
     )) {
         Ok(config) => Box::into_raw(Box::new(CBucketedUserConfig(config))),
         Err(_) => ptr::null_mut(),
     }
 }
 
-/// Get JSON representation of bucketed config
-/// Returns a C string that must be freed with devcycle_free_string
+/// Set config from JSON string
+/// Returns 0 on success, non-zero on error
 #[no_mangle]
-pub unsafe extern "C" fn devcycle_bucketed_config_to_json(
-    config: *const CBucketedUserConfig,
-) -> *mut c_char {
-    if config.is_null() {
+pub unsafe extern "C" fn devcycle_set_config(
+    sdk_key: *const c_char,
+    config_json: *const c_char,
+) -> i32 {
+    if sdk_key.is_null() || config_json.is_null() {
+        return -1;
+    }
+
+    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+        Ok(s) => s,
+        Err(_) => return -2,
+    };
+
+    let config_json_str = match CStr::from_ptr(config_json).to_str() {
+        Ok(s) => s,
+        Err(_) => return -3,
+    };
+
+    // Parse the JSON into a FullConfig first, then convert to ConfigBody
+    let full_config: crate::config::FullConfig = match serde_json::from_str(config_json_str) {
+        Ok(config) => config,
+        Err(_) => return -4,
+    };
+
+    // Convert FullConfig to ConfigBody using from_full_config
+    let config_body = match crate::config::ConfigBody::from_full_config(full_config) {
+        Ok(body) => body,
+        Err(_) => return -5,
+    };
+
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(_) => return -6,
+    };
+
+    match runtime.block_on(crate::set_config(sdk_key_str, config_body)) {
+        Ok(_) => 0,
+        Err(_) => -7,
+    }
+}
+
+/// Set client custom data from JSON string
+/// Returns 0 on success, non-zero on error
+#[no_mangle]
+pub unsafe extern "C" fn devcycle_set_client_custom_data(
+    sdk_key: *const c_char,
+    custom_data_json: *const c_char,
+) -> i32 {
+    if sdk_key.is_null() || custom_data_json.is_null() {
+        return -1;
+    }
+
+    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+        Ok(s) => s,
+        Err(_) => return -2,
+    };
+
+    let custom_data_json_str = match CStr::from_ptr(custom_data_json).to_str() {
+        Ok(s) => s,
+        Err(_) => return -3,
+    };
+
+    let custom_data: HashMap<String, serde_json::Value> =
+        match serde_json::from_str(custom_data_json_str) {
+            Ok(data) => data,
+            Err(_) => return -4,
+        };
+
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(_) => return -5,
+    };
+
+    match runtime.block_on(crate::set_client_custom_data(sdk_key_str, custom_data)) {
+        Ok(_) => 0,
+        Err(_) => -6,
+    }
+}
+
+/// Get variable value for a user
+/// Returns pointer to CVariableForUserResult on success, null on error
+#[no_mangle]
+pub unsafe extern "C" fn devcycle_variable_for_user(
+    sdk_key: *const c_char,
+    user: *const CPopulatedUser,
+    variable_key: *const c_char,
+    variable_type: *const c_char,
+) -> *mut CVariableForUserResult {
+    if sdk_key.is_null() || user.is_null() || variable_key.is_null() || variable_type.is_null() {
         return ptr::null_mut();
     }
 
-    match serde_json::to_string(&(*config).0) {
+    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+        Ok(s) => s,
+        Err(_) => return ptr::null_mut(),
+    };
+
+    let variable_key_str = match CStr::from_ptr(variable_key).to_str() {
+        Ok(s) => s,
+        Err(_) => return ptr::null_mut(),
+    };
+
+    let variable_type_str = match CStr::from_ptr(variable_type).to_str() {
+        Ok(s) => s,
+        Err(_) => return ptr::null_mut(),
+    };
+
+    let populated_user = (*user).0.clone();
+
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(_) => return ptr::null_mut(),
+    };
+
+    match runtime.block_on(crate::variable_for_user(
+        sdk_key_str,
+        populated_user,
+        variable_key_str,
+        variable_type_str,
+    )) {
+        Ok(result) => Box::into_raw(Box::new(CVariableForUserResult(result))),
+        Err(_) => ptr::null_mut(),
+    }
+}
+
+/// Get JSON representation of variable for user result
+/// Returns a C string that must be freed with devcycle_free_string
+#[no_mangle]
+pub unsafe extern "C" fn devcycle_variable_result_to_json(
+    result: *const CVariableForUserResult,
+) -> *mut c_char {
+    if result.is_null() {
+        return ptr::null_mut();
+    }
+
+    match serde_json::to_string(&(*result).0.variable_value) {
         Ok(json) => match CString::new(json) {
             Ok(c_str) => c_str.into_raw(),
             Err(_) => ptr::null_mut(),
         },
         Err(_) => ptr::null_mut(),
+    }
+}
+
+/// Get variable type from result
+/// Returns a C string that must be freed with devcycle_free_string
+#[no_mangle]
+pub unsafe extern "C" fn devcycle_variable_result_get_type(
+    result: *const CVariableForUserResult,
+) -> *mut c_char {
+    if result.is_null() {
+        return ptr::null_mut();
+    }
+
+    match CString::new((*result).0.variable_type.clone()) {
+        Ok(c_str) => c_str.into_raw(),
+        Err(_) => ptr::null_mut(),
+    }
+}
+
+/// Free a variable for user result
+#[no_mangle]
+pub unsafe extern "C" fn devcycle_free_variable_result(result: *mut CVariableForUserResult) {
+    if !result.is_null() {
+        let _ = Box::from_raw(result);
     }
 }
 

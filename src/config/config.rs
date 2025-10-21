@@ -126,6 +126,52 @@ pub struct ConfigBody<'a> {
 }
 
 impl<'a> ConfigBody<'a> {
+    /// Create a ConfigBody from a FullConfig
+    /// This leaks memory for the audiences map to achieve 'static lifetime
+    pub fn from_full_config(full_config: FullConfig) -> Result<ConfigBody<'static>, String> {
+        // Parse audiences from the full config
+        let mut audiences_map: HashMap<String, NoIdAudience> = HashMap::new();
+        for (key, value) in full_config.audiences.iter() {
+            match serde_json::from_value::<NoIdAudience>(value.clone()) {
+                Ok(audience) => {
+                    audiences_map.insert(key.clone(), audience);
+                }
+                Err(e) => {
+                    return Err(format!("Failed to parse audience {}: {}", key, e));
+                }
+            }
+        }
+        let static_audiences: &'static HashMap<String, NoIdAudience> =
+            Box::leak(Box::new(audiences_map));
+
+        let variable_id_map = HashMap::new();
+        let variable_key_map = HashMap::new();
+        let variable_id_to_feature_map = HashMap::new();
+
+        let sse = full_config.sse.unwrap_or_else(|| SSE {
+            hostname: "localhost".to_string(),
+            path: "/sse".to_string(),
+        });
+
+        let mut config = ConfigBody {
+            project: full_config.project,
+            audiences: static_audiences,
+            environment: full_config.environment,
+            features: full_config.features,
+            variables: full_config.variables,
+            sse,
+            variable_id_map,
+            variable_key_map,
+            variable_id_to_feature_map,
+            etag: String::new(),
+            ray_id: String::new(),
+            last_modified: chrono::Utc::now(),
+        };
+
+        config.compile();
+        Ok(config)
+    }
+
     pub(crate) fn get_variable_for_key(&self, key: &str) -> Option<&Variable> {
         if let Some(variable) = self.variable_key_map.get(key) {
             return Some(variable);
