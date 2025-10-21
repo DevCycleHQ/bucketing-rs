@@ -36,10 +36,19 @@ pub use util::errors::DevCycleError as Error;
 pub(crate) use util::murmurhash;
 
 use crate::bucketing::bucketing::VariableForUserResult;
+use crate::config::client_custom_data::get_client_custom_data;
+use crate::config::ConfigBody;
+
+pub async fn set_config(
+    sdk_key: &str,
+    config_body: ConfigBody<'static>,
+) -> Result<(), DevCycleError> {
+    Ok(configmanager::set_config(sdk_key, config_body))
+}
 
 pub async fn generate_bucketed_config(
     sdk_key: &str,
-    user: user::PopulatedUser,
+    user: PopulatedUser,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<BucketedUserConfig, DevCycleError> {
     bucketing::generate_bucketed_config(sdk_key.to_string(), user, client_custom_data).await
@@ -48,26 +57,28 @@ pub async fn generate_bucketed_config(
 pub async fn generate_bucketed_config_from_user(
     sdk_key: &str,
     user: User,
-    client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<BucketedUserConfig, DevCycleError> {
     let populated_user = user.get_populated_user(sdk_key);
-    bucketing::generate_bucketed_config(sdk_key.to_string(), populated_user, client_custom_data)
-        .await
+    bucketing::generate_bucketed_config(
+        sdk_key.to_string(),
+        populated_user,
+        get_client_custom_data(sdk_key.to_string()),
+    )
+    .await
 }
 
 pub async fn variable_for_user(
     sdk_key: &str,
-    user: user::PopulatedUser,
+    user: PopulatedUser,
     variable_key: &str,
     variable_type: &str,
-    client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<VariableForUserResult, DevCycleError> {
     bucketing::variable_for_user(
         sdk_key,
         user,
         variable_key,
         variable_type,
-        client_custom_data,
+        get_client_custom_data(sdk_key.to_string()),
     )
     .await
 }
