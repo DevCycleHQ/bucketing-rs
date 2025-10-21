@@ -84,6 +84,18 @@ pub(crate) fn variable_type_mismatch() -> DevCycleError {
     DevCycleError::new("Variable type mismatch")
 }
 
+pub fn failed_to_set_client_custom_data() -> DevCycleError {
+    DevCycleError::new("Failed to set client custom data")
+}
+
+pub fn parse_error(msg: String) -> DevCycleError {
+    DevCycleError::new(&format!("Parse error: {}", msg))
+}
+
+pub fn missing_field(field: String) -> DevCycleError {
+    DevCycleError::new(&format!("Missing required field: {}", field))
+}
+
 pub(crate) fn bucket_result_error_to_default_reason(err: &DevCycleError) -> DefaultReason {
     match err.details.as_str() {
         "Missing config" => DefaultReason::MissingConfig,
@@ -102,8 +114,4 @@ pub(crate) fn bucket_result_error_to_default_reason(err: &DevCycleError) -> Defa
 
 pub(crate) fn event_queue_not_initialized() -> DevCycleError {
     return DevCycleError::new("Event queue not initialized");
-}
-
-pub(crate) fn failed_to_set_client_custom_data() -> DevCycleError {
-    return DevCycleError::new("Failed to set client custom data");
 }
