@@ -114,11 +114,11 @@ pub async fn set_client_custom_data(
     sdk_key: &str,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<(), DevCycleError> {
-    if config::client_custom_data::set_client_custom_data(sdk_key.to_string(), client_custom_data)
-        .is_some()
-    {
-        Ok(())
-    } else {
-        Err(errors::failed_to_set_client_custom_data())
-    }
+    // The insert operation always succeeds, it returns the old value if one existed
+    config::client_custom_data::set_client_custom_data(sdk_key.to_string(), client_custom_data);
+    Ok(())
+}
+
+pub async fn set_platform_data(sdk_key: &str, platform_data: PlatformData) {
+    config::platform_data::set_platform_data(sdk_key.to_string(), platform_data);
 }

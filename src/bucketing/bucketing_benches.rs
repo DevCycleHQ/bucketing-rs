@@ -12,7 +12,7 @@ use std::collections::HashMap;
 const BENCH_SDK_KEY: &str = "benchmark-sdk-key";
 
 // Setup functions to initialize test data
-fn setup_platform_data() {
+async fn setup_platform_data() {
     let platform_data = PlatformData {
         sdk_type: "server".to_string(),
         sdk_version: "1.0.0".to_string(),
@@ -21,7 +21,7 @@ fn setup_platform_data() {
         platform: "benchmark".to_string(),
         hostname: "localhost".to_string(),
     };
-    set_platform_data(BENCH_SDK_KEY.to_string(), platform_data);
+    set_platform_data(BENCH_SDK_KEY, platform_data).await;
 }
 
 fn create_test_user(user_id: &str) -> PopulatedUser {
