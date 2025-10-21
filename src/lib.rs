@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 // Module declarations - now organized with mod.rs files in each folder
 pub mod bucketing;
-pub(crate) mod config;
+pub mod config;
 pub mod events;
 pub(crate) mod segmentation;
 pub mod user;

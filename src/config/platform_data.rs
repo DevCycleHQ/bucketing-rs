@@ -47,7 +47,7 @@ impl PlatformData {
     }
 }
 
-pub(crate) fn get_platform_data(sdk_key: &str) -> Result<Arc<PlatformData>, String> {
+pub fn get_platform_data(sdk_key: &str) -> Result<Arc<PlatformData>, String> {
     let data = PLATFORM_DATA
         .read()
         .expect("Failed to acquire read lock on PLATFORM_DATA: lock poisoned");
@@ -59,7 +59,7 @@ pub(crate) fn get_platform_data(sdk_key: &str) -> Result<Arc<PlatformData>, Stri
     })
 }
 
-pub(crate) fn set_platform_data(sdk_key: String, platform_data: PlatformData) {
+pub fn set_platform_data(sdk_key: String, platform_data: PlatformData) {
     let mut data = PLATFORM_DATA
         .write()
         .expect("Failed to acquire write lock on PLATFORM_DATA (lock may be poisoned)");
