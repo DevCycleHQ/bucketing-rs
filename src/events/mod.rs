@@ -1,13 +1,13 @@
 pub mod event;
-pub mod event_queue;
-pub mod event_queue_manager;
+pub(crate) mod event_queue;
+pub(crate) mod event_queue_manager;
 
 #[cfg(test)]
 mod event_queue_tests;
 #[cfg(test)]
 mod event_tests;
 
-// Re-export commonly used types
+// Re-export event types that are used externally
 pub use event::*;
-pub use event_queue::*;
-pub use event_queue_manager::*;
+// EventQueue and EventQueueOptions are used in lib.rs public API
+pub use event_queue::EventQueueOptions;

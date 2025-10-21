@@ -1,9 +1,9 @@
+use crate::config::client_custom_data::get_client_custom_data;
+use crate::config::platform_data::PlatformData;
 use crate::config::ConfigBody;
 use crate::errors::DevCycleError;
 use crate::events::event::*;
 use crate::generate_bucketed_config;
-use crate::platform_data::PlatformData;
-use crate::segmentation::client_custom_data::get_client_custom_data;
 use crate::user::{PopulatedUser, User};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -71,7 +71,7 @@ impl EventQueue {
     ) -> Result<Self, DevCycleError> {
         let (agg_event_queue_raw_tx, agg_event_queue_raw_rx) = mpsc::channel(10000);
         let (user_event_queue_raw_tx, user_event_queue_raw_rx) = mpsc::channel(10000);
-        let platform_data = crate::platform_data::get_platform_data(&sdk_key)
+        let platform_data = crate::config::platform_data::get_platform_data(&sdk_key)
             .map_err(|e| DevCycleError::new(&e))?;
         Ok(Self {
             sdk_key,

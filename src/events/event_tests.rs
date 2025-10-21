@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::event::{DefaultReason, EvaluationReason};
+    use crate::events::event::{DefaultReason, EvaluationReason};
 
     #[test]
     fn test_evaluation_reason_display() {

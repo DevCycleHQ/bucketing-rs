@@ -1,4 +1,4 @@
-pub mod bucketing;
+pub(crate) mod bucketing;
 
 #[cfg(test)]
 mod bucketing_tests;
@@ -7,3 +7,4 @@ mod bucketing_tests;
 pub use bucketing::generate_bucketed_config;
 
 pub use bucketing::variable_for_user;
+pub(crate) use bucketing::*;

@@ -1,6 +1,6 @@
+use crate::config::platform_data::PlatformData;
 use crate::config::{Environment, Project};
 use crate::feature::{Feature, FeatureVariation, ReadOnlyVariable};
-use crate::platform_data::PlatformData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -44,7 +44,7 @@ impl User {
         create_date: DateTime<Utc>,
     ) -> PopulatedUser {
         let platform_data = platform_data
-            .unwrap_or_else(|| crate::platform_data::get_platform_data(sdk_key).unwrap());
+            .unwrap_or_else(|| crate::config::platform_data::get_platform_data(sdk_key).unwrap());
 
         PopulatedUser {
             user_id: self.user_id.clone(),

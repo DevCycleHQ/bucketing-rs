@@ -1,11 +1,12 @@
 #[cfg(test)]
 mod tests {
+    use crate::config::platform_data;
+    use crate::config::platform_data::PlatformData;
     use crate::config::*;
     use crate::configmanager::*;
-    use crate::event::*;
+    use crate::events::event::*;
+    use crate::events::event_queue::{EventQueue, EventQueueOptions};
     use crate::events::event_queue_manager;
-    use crate::events::{EventQueue, EventQueueOptions};
-    use crate::platform_data::PlatformData;
     use crate::user::User;
     use chrono::Utc;
     use std::collections::HashMap;
@@ -132,7 +133,7 @@ mod tests {
             hostname: "localhost".to_string(),
             device_model: "test".to_string(),
         };
-        crate::platform_data::set_platform_data(sdk_key.to_string(), platform_data);
+        platform_data::set_platform_data(sdk_key.to_string(), platform_data);
     }
 
     #[tokio::test]

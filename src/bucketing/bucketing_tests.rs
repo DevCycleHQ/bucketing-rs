@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
+    use crate::config::platform_data::{self, PlatformData};
     use crate::config::*;
     use crate::configmanager;
-    use crate::platform_data::{self, PlatformData};
     use crate::user::*;
     use crate::{bucketing, EvaluationReason};
     use chrono::Utc;
@@ -764,7 +764,7 @@ mod tests {
 
         // Verify that variables have eval details with reason and target_id
         for (variable_key, variable) in &bucketed_config.variables {
-            use crate::event::EvaluationReason;
+            use crate::events::EvaluationReason;
             let eval_details = &variable.eval;
 
             // Check reason is valid enum variant (use pattern matching for type safety)

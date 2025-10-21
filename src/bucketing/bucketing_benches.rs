@@ -1,11 +1,11 @@
 use chrono::Utc;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use devcycle_bucketing_rs::bucketing::generate_bucketed_config;
-use devcycle_bucketing_rs::bucketing::variable_for_user;
-use devcycle_bucketing_rs::events::event_queue::EventQueueOptions;
 use devcycle_bucketing_rs::init_event_queue;
-use devcycle_bucketing_rs::platform_data::{get_platform_data, set_platform_data, PlatformData};
 use devcycle_bucketing_rs::user::PopulatedUser;
+use devcycle_bucketing_rs::variable_for_user;
+use devcycle_bucketing_rs::EventQueueOptions;
+use devcycle_bucketing_rs::{generate_bucketed_config, set_client_custom_data};
+use devcycle_bucketing_rs::{get_platform_data, set_platform_data, PlatformData};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -82,11 +82,9 @@ fn bench_generate_bucketed_config(c: &mut Criterion) {
                 let user = create_test_user("bench_user");
                 let client_custom_data = HashMap::new();
 
-                unsafe {
-                    generate_bucketed_config(BENCH_SDK_KEY.to_string(), user, client_custom_data)
-                        .await
-                        .ok()
-                }
+                generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
+                    .await
+                    .ok();
             })
         });
     });
@@ -98,11 +96,9 @@ fn bench_generate_bucketed_config(c: &mut Criterion) {
                 let user = create_test_user_with_custom_data("bench_user_custom");
                 let client_custom_data = HashMap::new();
 
-                unsafe {
-                    generate_bucketed_config(BENCH_SDK_KEY.to_string(), user, client_custom_data)
-                        .await
-                        .ok()
-                }
+                generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
+                    .await
+                    .ok();
             })
         });
     });
@@ -119,15 +115,9 @@ fn bench_generate_bucketed_config(c: &mut Criterion) {
                             let user = create_test_user(&format!("bench_user_{}", i));
                             let client_custom_data = HashMap::new();
 
-                            unsafe {
-                                generate_bucketed_config(
-                                    BENCH_SDK_KEY.to_string(),
-                                    user,
-                                    client_custom_data,
-                                )
+                            generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
                                 .await
-                                .ok()
-                            };
+                                .ok();
                         }
                     })
                 });
@@ -157,15 +147,9 @@ fn bench_user_scenarios(c: &mut Criterion) {
                         user.country = country_code.to_string();
                         let client_custom_data = HashMap::new();
 
-                        unsafe {
-                            generate_bucketed_config(
-                                BENCH_SDK_KEY.to_string(),
-                                user,
-                                client_custom_data,
-                            )
+                        generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
                             .await
-                            .ok()
-                        }
+                            .ok();
                     })
                 });
             },
@@ -189,15 +173,9 @@ fn bench_user_scenarios(c: &mut Criterion) {
                         }
                         let client_custom_data = HashMap::new();
 
-                        unsafe {
-                            generate_bucketed_config(
-                                BENCH_SDK_KEY.to_string(),
-                                user,
-                                client_custom_data,
-                            )
+                        generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
                             .await
-                            .ok()
-                        }
+                            .ok();
                     })
                 });
             },
@@ -222,15 +200,9 @@ fn bench_throughput(c: &mut Criterion) {
                     let user = create_test_user(&format!("throughput_user_{}", i));
                     let client_custom_data = HashMap::new();
 
-                    unsafe {
-                        generate_bucketed_config(
-                            BENCH_SDK_KEY.to_string(),
-                            user,
-                            client_custom_data,
-                        )
+                    generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
                         .await
-                        .ok()
-                    };
+                        .ok();
                 }
             })
         });
@@ -243,15 +215,9 @@ fn bench_throughput(c: &mut Criterion) {
                     let user = create_test_user(&format!("throughput_user_{}", i));
                     let client_custom_data = HashMap::new();
 
-                    unsafe {
-                        generate_bucketed_config(
-                            BENCH_SDK_KEY.to_string(),
-                            user,
-                            client_custom_data,
-                        )
+                    generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
                         .await
-                        .ok()
-                    };
+                        .ok();
                 }
             })
         });
@@ -273,18 +239,11 @@ fn bench_variable_for_user(c: &mut Criterion) {
             runtime.block_on(async {
                 let user = create_test_user("bench_var_user");
                 let client_custom_data = HashMap::new();
+                let _ = set_client_custom_data(BENCH_SDK_KEY, client_custom_data.clone()).await;
 
-                unsafe {
-                    variable_for_user(
-                        BENCH_SDK_KEY,
-                        user,
-                        "test_variable",
-                        "String",
-                        client_custom_data,
-                    )
+                variable_for_user(BENCH_SDK_KEY, user, "test_variable", "String")
                     .await
-                    .ok()
-                }
+                    .ok();
             })
         });
     });
@@ -295,18 +254,11 @@ fn bench_variable_for_user(c: &mut Criterion) {
             runtime.block_on(async {
                 let user = create_test_user_with_custom_data("bench_var_user_custom");
                 let client_custom_data = HashMap::new();
+                let _ = set_client_custom_data(BENCH_SDK_KEY, client_custom_data.clone()).await;
 
-                unsafe {
-                    variable_for_user(
-                        BENCH_SDK_KEY,
-                        user,
-                        "test_variable",
-                        "String",
-                        client_custom_data,
-                    )
+                variable_for_user(BENCH_SDK_KEY, user, "test_variable", "String")
                     .await
-                    .ok()
-                }
+                    .ok();
             })
         });
     });
@@ -320,25 +272,19 @@ fn bench_variable_for_user(c: &mut Criterion) {
                 b.iter(|| {
                     runtime.block_on(async move {
                         // Initialize event queue via manager
-                        init_event_queue(BENCH_SDK_KEY.clone(), EventQueueOptions::default())
+                        init_event_queue(BENCH_SDK_KEY, EventQueueOptions::default())
                             .await
                             .unwrap();
 
                         for i in 0..count {
                             let user = create_test_user(&format!("bench_var_user_{}", i));
                             let client_custom_data = HashMap::new();
-
-                            unsafe {
-                                variable_for_user(
-                                    BENCH_SDK_KEY,
-                                    user,
-                                    "test_variable",
-                                    "String",
-                                    client_custom_data,
-                                )
+                            let _ =
+                                set_client_custom_data(BENCH_SDK_KEY, client_custom_data.clone())
+                                    .await;
+                            variable_for_user(BENCH_SDK_KEY, user, "test_variable", "String")
                                 .await
-                                .ok()
-                            };
+                                .ok();
                         }
                     })
                 });

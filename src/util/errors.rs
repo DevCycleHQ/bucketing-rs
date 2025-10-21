@@ -1,4 +1,4 @@
-use crate::event::DefaultReason;
+use crate::events::event::DefaultReason;
 use std::error::Error;
 use std::fmt;
 
@@ -44,47 +44,47 @@ pub const MISSING_VARIATION: DevCycleError = DevCycleError {
 };
 
 // Helper functions to create errors with proper messages
-pub fn failed_to_decide_variation() -> DevCycleError {
+pub(crate) fn failed_to_decide_variation() -> DevCycleError {
     DevCycleError::new("Failed to decide target variation")
 }
 
-pub fn failed_user_does_not_qualify_for_targets() -> DevCycleError {
-    DevCycleError::new("User does not qualify for targets")
+pub(crate) fn failed_user_does_not_qualify_for_targets() -> DevCycleError {
+    DevCycleError::new("User does not qualify for any targets")
 }
 
-pub fn failed_user_does_not_qualify_for_rollouts() -> DevCycleError {
+pub(crate) fn failed_user_does_not_qualify_for_rollouts() -> DevCycleError {
     DevCycleError::new("User does not qualify for rollouts")
 }
 
-pub fn missing_variable() -> DevCycleError {
-    DevCycleError::new("Missing variable")
+pub(crate) fn missing_variable() -> DevCycleError {
+    DevCycleError::new("Variable not found")
 }
 
-pub fn missing_variation() -> DevCycleError {
-    DevCycleError::new("Missing variation")
+pub(crate) fn missing_variation() -> DevCycleError {
+    DevCycleError::new("Variation not found")
 }
 
-pub fn missing_config() -> DevCycleError {
-    DevCycleError::new("Missing config")
+pub(crate) fn missing_config() -> DevCycleError {
+    DevCycleError::new("Config not found")
 }
 
-pub fn missing_feature() -> DevCycleError {
-    DevCycleError::new("Missing feature")
+pub(crate) fn missing_feature() -> DevCycleError {
+    DevCycleError::new("Feature not found")
 }
 
-pub fn missing_variable_for_variation() -> DevCycleError {
-    DevCycleError::new("Missing variable for variation")
+pub(crate) fn missing_variable_for_variation() -> DevCycleError {
+    DevCycleError::new("Variable not found for variation")
 }
 
-pub fn invalid_variable_type() -> DevCycleError {
+pub(crate) fn invalid_variable_type() -> DevCycleError {
     DevCycleError::new("Invalid variable type")
 }
 
-pub fn variable_type_mismatch() -> DevCycleError {
+pub(crate) fn variable_type_mismatch() -> DevCycleError {
     DevCycleError::new("Variable type mismatch")
 }
 
-pub fn bucket_result_error_to_default_reason(err: &DevCycleError) -> DefaultReason {
+pub(crate) fn bucket_result_error_to_default_reason(err: &DevCycleError) -> DefaultReason {
     match err.details.as_str() {
         "Missing config" => DefaultReason::MissingConfig,
         "Missing variable" => DefaultReason::MissingVariable,
@@ -102,4 +102,8 @@ pub fn bucket_result_error_to_default_reason(err: &DevCycleError) -> DefaultReas
 
 pub(crate) fn event_queue_not_initialized() -> DevCycleError {
     return DevCycleError::new("Event queue not initialized");
+}
+
+pub(crate) fn failed_to_set_client_custom_data() -> DevCycleError {
+    return DevCycleError::new("Failed to set client custom data");
 }

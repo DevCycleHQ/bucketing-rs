@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct Project {
+pub struct Project {
     pub _id: String,
     pub key: String,
     pub a0_organization: String,
@@ -13,7 +13,7 @@ pub(crate) struct Project {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct ProjectSettings {
+pub struct ProjectSettings {
     #[serde(alias = "edgeDB", rename = "edgeDB", default)]
     pub edgedb: EdgeDBSettings,
     #[serde(alias = "optIn", rename = "optIn", default)]
@@ -29,12 +29,12 @@ pub(crate) struct ProjectSettings {
 }
 
 #[derive(Clone, Serialize, Deserialize, Default)]
-pub(crate) struct EdgeDBSettings {
+pub struct EdgeDBSettings {
     pub enabled: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize, Default)]
-pub(crate) struct OptInSettings {
+pub struct OptInSettings {
     pub enabled: bool,
     #[serde(default)]
     pub title: String,
@@ -47,7 +47,7 @@ pub(crate) struct OptInSettings {
 }
 
 #[derive(Clone, Serialize, Deserialize, Default)]
-pub(crate) struct OptInColors {
+pub struct OptInColors {
     #[serde(default)]
     pub primary: String,
     #[serde(default)]
@@ -55,13 +55,13 @@ pub(crate) struct OptInColors {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct ObfuscationSettings {
+pub struct ObfuscationSettings {
     pub required: bool,
     pub enabled: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct Environment {
+pub struct Environment {
     pub _id: String,
     pub key: String,
 }
@@ -75,19 +75,19 @@ pub(crate) struct BucketingConfiguration {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct SSE {
+pub struct SSE {
     pub hostname: String,
     pub path: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct SSEHost {
+pub struct SSEHost {
     pub hostname: String,
     pub path: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct Variable {
+pub struct Variable {
     pub _id: String,
     #[serde(rename = "type")]
     pub _type: String,
@@ -95,7 +95,7 @@ pub(crate) struct Variable {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct FullConfig {
+pub struct FullConfig {
     pub project: Project,
     pub environment: Environment,
     pub features: Vec<ConfigFeature>,
@@ -110,19 +110,19 @@ pub(crate) struct FullConfig {
     pub sse: Option<SSE>,
 }
 
-pub(crate) struct ConfigBody<'a> {
-    pub(crate) project: Project,
-    pub(crate) audiences: &'a HashMap<String, NoIdAudience>,
-    pub(crate) environment: Environment,
-    pub(crate) features: Vec<ConfigFeature>,
-    pub(crate) variables: Vec<Variable>,
-    pub(crate) sse: SSE,
-    pub(crate) variable_id_map: HashMap<String, Variable>,
-    pub(crate) variable_key_map: HashMap<String, Variable>,
-    pub(crate) variable_id_to_feature_map: HashMap<String, ConfigFeature>,
-    pub(crate) etag: String,
-    pub(crate) ray_id: String,
-    pub(crate) last_modified: DateTime<chrono::Utc>,
+pub struct ConfigBody<'a> {
+    pub project: Project,
+    pub audiences: &'a HashMap<String, NoIdAudience>,
+    pub environment: Environment,
+    pub features: Vec<ConfigFeature>,
+    pub variables: Vec<Variable>,
+    pub sse: SSE,
+    pub variable_id_map: HashMap<String, Variable>,
+    pub variable_key_map: HashMap<String, Variable>,
+    pub variable_id_to_feature_map: HashMap<String, ConfigFeature>,
+    pub etag: String,
+    pub ray_id: String,
+    pub last_modified: DateTime<chrono::Utc>,
 }
 
 impl<'a> ConfigBody<'a> {

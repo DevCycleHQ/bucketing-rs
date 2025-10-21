@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::platform_data::{get_platform_data, set_platform_data, PlatformData};
+    use crate::config::platform_data::{get_platform_data, set_platform_data, PlatformData};
     use std::sync::Arc;
 
     #[test]
