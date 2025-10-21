@@ -3,9 +3,9 @@ use crate::user::{BucketedUserConfig, User};
 use std::collections::HashMap;
 
 // Module declarations - now organized with mod.rs files in each folder
-pub mod bucketing;
-pub mod config;
-pub mod events;
+pub(crate) mod bucketing;
+pub(crate) mod config;
+pub(crate) mod events;
 pub(crate) mod segmentation;
 pub mod user;
 pub(crate) mod util;

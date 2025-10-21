@@ -1,13 +1,11 @@
 use chrono::Utc;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use devcycle_bucketing_rs::bucketing::generate_bucketed_config;
-use devcycle_bucketing_rs::bucketing::variable_for_user;
-use devcycle_bucketing_rs::config::platform_data::{
-    get_platform_data, set_platform_data, PlatformData,
-};
-use devcycle_bucketing_rs::events::EventQueueOptions;
+use devcycle_bucketing_rs::generate_bucketed_config;
 use devcycle_bucketing_rs::init_event_queue;
 use devcycle_bucketing_rs::user::PopulatedUser;
+use devcycle_bucketing_rs::variable_for_user;
+use devcycle_bucketing_rs::EventQueueOptions;
+use devcycle_bucketing_rs::{get_platform_data, set_platform_data, PlatformData};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -85,7 +83,7 @@ fn bench_generate_bucketed_config(c: &mut Criterion) {
                 let client_custom_data = HashMap::new();
 
                 unsafe {
-                    generate_bucketed_config(BENCH_SDK_KEY.to_string(), user, client_custom_data)
+                    generate_bucketed_config(BENCH_SDK_KEY.clone(), user, client_custom_data)
                         .await
                         .ok()
                 }
@@ -101,7 +99,7 @@ fn bench_generate_bucketed_config(c: &mut Criterion) {
                 let client_custom_data = HashMap::new();
 
                 unsafe {
-                    generate_bucketed_config(BENCH_SDK_KEY.to_string(), user, client_custom_data)
+                    generate_bucketed_config(BENCH_SDK_KEY.clone(), user, client_custom_data)
                         .await
                         .ok()
                 }
@@ -123,7 +121,7 @@ fn bench_generate_bucketed_config(c: &mut Criterion) {
 
                             unsafe {
                                 generate_bucketed_config(
-                                    BENCH_SDK_KEY.to_string(),
+                                    BENCH_SDK_KEY.clone(),
                                     user,
                                     client_custom_data,
                                 )
@@ -161,7 +159,7 @@ fn bench_user_scenarios(c: &mut Criterion) {
 
                         unsafe {
                             generate_bucketed_config(
-                                BENCH_SDK_KEY.to_string(),
+                                BENCH_SDK_KEY.clone(),
                                 user,
                                 client_custom_data,
                             )
@@ -193,7 +191,7 @@ fn bench_user_scenarios(c: &mut Criterion) {
 
                         unsafe {
                             generate_bucketed_config(
-                                BENCH_SDK_KEY.to_string(),
+                                BENCH_SDK_KEY.clone(),
                                 user,
                                 client_custom_data,
                             )
@@ -225,13 +223,9 @@ fn bench_throughput(c: &mut Criterion) {
                     let client_custom_data = HashMap::new();
 
                     unsafe {
-                        generate_bucketed_config(
-                            BENCH_SDK_KEY.to_string(),
-                            user,
-                            client_custom_data,
-                        )
-                        .await
-                        .ok()
+                        generate_bucketed_config(BENCH_SDK_KEY.clone(), user, client_custom_data)
+                            .await
+                            .ok()
                     };
                 }
             })
@@ -246,13 +240,9 @@ fn bench_throughput(c: &mut Criterion) {
                     let client_custom_data = HashMap::new();
 
                     unsafe {
-                        generate_bucketed_config(
-                            BENCH_SDK_KEY.to_string(),
-                            user,
-                            client_custom_data,
-                        )
-                        .await
-                        .ok()
+                        generate_bucketed_config(BENCH_SDK_KEY.clone(), user, client_custom_data)
+                            .await
+                            .ok()
                     };
                 }
             })
