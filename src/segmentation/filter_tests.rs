@@ -2,16 +2,17 @@
 mod tests {
     use crate::constants;
     use crate::filters::*;
-    use crate::platform_data::{self, PlatformData};
-    use crate::user::PopulatedUser;
-    use chrono::Utc;
     use std::collections::HashMap;
+
+    use crate::config::platform_data::{self, PlatformData};
+    use crate::user::PopulatedUser;
+
+    use chrono::Utc;
     use std::sync::{Arc, Once};
 
     const TEST_SDK_KEY: &str = "test-sdk-key";
 
     static INIT: Once = Once::new();
-
     fn initialize_test_platform_data() {
         INIT.call_once(|| {
             let platform_data = PlatformData {
@@ -2338,12 +2339,12 @@ mod tests {
                 _type: constants::TYPE_USER.to_string(),
                 sub_type: Some(constants::SUB_TYPE_APP_VERSION.to_string()),
                 comparator: Some("<".to_string()),
+                filters: vec![],
+                operator: None,
                 values: filter_values
                     .iter()
                     .map(|v| serde_json::Value::String(v.to_string()))
                     .collect(),
-                filters: vec![],
-                operator: None,
                 _audiences: vec![],
             };
 
