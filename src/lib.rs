@@ -18,6 +18,10 @@ pub mod ffi;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+// Protobuf support
+#[cfg(feature = "protobuf")]
+pub mod protobuf;
+
 // Internal re-exports for convenience within the crate
 pub(crate) use config::configmanager;
 pub(crate) use config::feature;
@@ -43,6 +47,15 @@ pub async fn set_config(
     sdk_key: &str,
     config_body: ConfigBody<'static>,
 ) -> Result<(), DevCycleError> {
+    Ok(configmanager::set_config(sdk_key, config_body))
+}
+
+#[cfg(feature = "protobuf")]
+pub async fn set_config_from_protobuf(
+    sdk_key: &str,
+    proto_config: protobuf::proto::ConfigBodyProto,
+) -> Result<(), DevCycleError> {
+    let config_body = protobuf::convert_proto_to_config_body(proto_config)?;
     Ok(configmanager::set_config(sdk_key, config_body))
 }
 
