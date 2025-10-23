@@ -406,6 +406,141 @@ pub unsafe extern "C" fn devcycle_set_platform_data(
     0
 }
 
+/// Initialize SDK key with config, event queue options, client custom data, and platform data
+/// This is a convenience function that calls set_config, init_event_queue, set_client_custom_data, and set_platform_data
+/// Returns 0 on success, non-zero on error
+/// Call devcycle_get_last_error() to get detailed error message
+#[no_mangle]
+pub unsafe extern "C" fn devcycle_init_sdk_key(
+    sdk_key: *const c_char,
+    config_json: *const c_char,
+    event_queue_options: *const CEventQueueOptions,
+    client_custom_data_json: *const c_char,
+    platform_data_json: *const c_char,
+) -> i32 {
+    clear_last_error();
+
+    if sdk_key.is_null() || config_json.is_null() {
+        set_last_error("SDK key or config JSON pointer is null".to_string());
+        return -1;
+    }
+
+    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!("Failed to convert SDK key from C string: {}", e));
+            return -2;
+        }
+    };
+
+    let config_json_str = match CStr::from_ptr(config_json).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_last_error(format!(
+                "Failed to convert config JSON from C string: {}",
+                e
+            ));
+            return -3;
+        }
+    };
+
+    // Parse platform data
+    let platform_data: crate::PlatformData = if platform_data_json.is_null() {
+        crate::PlatformData::generate()
+    } else {
+        match CStr::from_ptr(platform_data_json).to_str() {
+            Ok(json_str) => match serde_json::from_str(json_str) {
+                Ok(data) => data,
+                Err(e) => {
+                    set_last_error(format!("Failed to parse platform data JSON: {}", e));
+                    return -7;
+                }
+            },
+            Err(e) => {
+                set_last_error(format!(
+                    "Failed to convert platform data from C string: {}",
+                    e
+                ));
+                return -7;
+            }
+        }
+    };
+
+    // Parse the JSON into a FullConfig first, then convert to ConfigBody
+    let full_config: crate::config::FullConfig = match serde_json::from_str(config_json_str) {
+        Ok(config) => config,
+        Err(e) => {
+            set_last_error(format!(
+                "Failed to parse JSON into FullConfig: {} (JSON preview: {})",
+                e,
+                &config_json_str.chars().take(200).collect::<String>()
+            ));
+            return -4;
+        }
+    };
+
+    // Convert FullConfig to ConfigBody using from_full_config
+    let config_body = match crate::config::ConfigBody::from_full_config(full_config) {
+        Ok(body) => body,
+        Err(e) => {
+            set_last_error(format!("Failed to convert FullConfig to ConfigBody: {}", e));
+            return -5;
+        }
+    };
+
+    // Parse event queue options
+    let event_options = if event_queue_options.is_null() {
+        crate::EventQueueOptions::default()
+    } else {
+        (*event_queue_options).0.clone()
+    };
+
+    // Parse client custom data
+    let client_custom_data: HashMap<String, serde_json::Value> =
+        if client_custom_data_json.is_null() {
+            HashMap::new()
+        } else {
+            match CStr::from_ptr(client_custom_data_json).to_str() {
+                Ok(json_str) => match serde_json::from_str(json_str) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        set_last_error(format!("Failed to parse client custom data JSON: {}", e));
+                        return -6;
+                    }
+                },
+                Err(e) => {
+                    set_last_error(format!(
+                        "Failed to convert client custom data from C string: {}",
+                        e
+                    ));
+                    return -6;
+                }
+            }
+        };
+
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            set_last_error(format!("Failed to create Tokio runtime: {}", e));
+            return -8;
+        }
+    };
+
+    match runtime.block_on(crate::init_sdk_key(
+        sdk_key_str,
+        config_body,
+        event_options,
+        client_custom_data,
+        platform_data,
+    )) {
+        Ok(_) => 0,
+        Err(e) => {
+            set_last_error(format!("Failed to initialize SDK key: {}", e));
+            -9
+        }
+    }
+}
+
 /// Get variable value for a user
 /// Returns pointer to CVariableForUserResult on success, null on error
 /// Call devcycle_get_last_error() to get detailed error message

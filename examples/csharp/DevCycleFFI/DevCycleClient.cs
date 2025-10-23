@@ -225,6 +225,85 @@ public class DevCycleClient : IDisposable
     }
 
     /// <summary>
+    /// Initialize SDK key with all required data in one call
+    /// This is a convenience method that combines SetConfig, SetPlatformData, SetClientCustomData, and InitializeEventQueue
+    /// </summary>
+    public void InitSdkKey(
+        string configJson,
+        PlatformData? platformData = null,
+        Dictionary<string, object>? customData = null,
+        bool initializeEventQueue = false)
+    {
+        LogDebug("InitSdkKey called");
+        if (string.IsNullOrEmpty(configJson))
+            throw new ArgumentNullException(nameof(configJson));
+
+        // Use provided platform data or generate it
+        var platform = platformData ?? PlatformData.Generate();
+        var platformDataJson = System.Text.Json.JsonSerializer.Serialize(platform);
+
+        // Serialize custom data if provided
+        var customDataJson = customData != null
+            ? System.Text.Json.JsonSerializer.Serialize(customData)
+            : null;
+
+        LogDebug($"Config JSON length: {configJson.Length} characters");
+        LogDebug($"Platform: {platform.Platform}, Hostname: {platform.Hostname}");
+        if (customData != null)
+            LogDebug($"Custom data: {customDataJson}");
+
+        IntPtr sdkKeyPtr = IntPtr.Zero;
+        IntPtr configPtr = IntPtr.Zero;
+        IntPtr platformDataPtr = IntPtr.Zero;
+        IntPtr customDataPtr = IntPtr.Zero;
+
+        try
+        {
+            sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
+            configPtr = Marshal.StringToHGlobalAnsi(configJson);
+            platformDataPtr = Marshal.StringToHGlobalAnsi(platformDataJson);
+
+            if (customDataJson != null)
+                customDataPtr = Marshal.StringToHGlobalAnsi(customDataJson);
+
+            LogDebug("Calling native devcycle_init_sdk_key...");
+            var result = NativeMethods.devcycle_init_sdk_key(
+                sdkKeyPtr,
+                configPtr,
+                initializeEventQueue ? IntPtr.Zero : IntPtr.Zero,  // event queue options (null for default)
+                customDataPtr == IntPtr.Zero ? IntPtr.Zero : customDataPtr,
+                platformDataPtr);
+
+            LogDebug($"Native function returned: {result}");
+
+            if (result != 0)
+            {
+                var detailedError = GetLastFFIError();
+                LogDebug($"Detailed error from FFI: {detailedError}");
+                throw new DevCycleException($"Failed to initialize SDK key (error code {result}): {detailedError}");
+            }
+
+            LogDebug("SDK key initialized successfully");
+        }
+        catch (Exception ex) when (ex is not DevCycleException)
+        {
+            LogDebug($"Unexpected exception in InitSdkKey: {ex.GetType().Name}: {ex.Message}");
+            throw new DevCycleException($"Failed to initialize SDK key: {ex.Message}", ex);
+        }
+        finally
+        {
+            if (sdkKeyPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(sdkKeyPtr);
+            if (configPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(configPtr);
+            if (platformDataPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(platformDataPtr);
+            if (customDataPtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(customDataPtr);
+        }
+    }
+
+    /// <summary>
     /// Generate bucketed config for a user
     /// </summary>
     public string GenerateBucketedConfig(DevCycleUser user)
@@ -303,6 +382,85 @@ public class DevCycleClient : IDisposable
                             }
                         }
                         return "Config generated successfully";
+                    }
+                    finally
+                    {
+                        if (jsonPtr != IntPtr.Zero)
+                            NativeMethods.devcycle_free_string(jsonPtr);
+                    }
+                }
+                finally
+                {
+                    NativeMethods.devcycle_free_bucketed_config(configPtr);
+                }
+            }
+            finally
+            {
+                NativeMethods.devcycle_free_user(cUserPtr);
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(sdkKeyPtr);
+            Marshal.FreeHGlobal(userPtr);
+        }
+    }
+
+    // Silent variant for benchmarking: no console output except debug
+    public string GenerateBucketedConfigSilent(DevCycleUser user)
+    {
+        if (user == null)
+            throw new ArgumentNullException(nameof(user));
+
+        var userJson = System.Text.Json.JsonSerializer.Serialize(user);
+        LogDebug($"User JSON being sent: {userJson}");
+
+        var sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
+        var userPtr = Marshal.StringToHGlobalAnsi(userJson);
+        try
+        {
+            var cUserPtr = NativeMethods.devcycle_user_from_json(userPtr);
+            if (cUserPtr == IntPtr.Zero)
+            {
+                var detailedError = GetLastFFIError();
+                throw new DevCycleException($"Failed to create user from JSON: {detailedError}");
+            }
+
+            try
+            {
+                var configPtr = NativeMethods.devcycle_generate_bucketed_config_from_user(sdkKeyPtr, cUserPtr);
+                if (configPtr == IntPtr.Zero)
+                {
+                    var detailedError = GetLastFFIError();
+                    throw new DevCycleException($"Failed to generate bucketed config: {detailedError}");
+                }
+
+                try
+                {
+                    var jsonPtr = NativeMethods.devcycle_bucketed_config_to_json(configPtr);
+                    if (jsonPtr == IntPtr.Zero)
+                    {
+                        var detailedError = GetLastFFIError();
+                        LogDebug($"Warning: Failed to serialize config to JSON: {detailedError}");
+                        return string.Empty;
+                    }
+                    try
+                    {
+                        var configJson = Marshal.PtrToStringAnsi(jsonPtr);
+                        if (configJson != null)
+                        {
+                            // Attempt pretty-print (cost negligible for benchmarking correctness)
+                            try
+                            {
+                                var jsonDoc = System.Text.Json.JsonDocument.Parse(configJson);
+                                return System.Text.Json.JsonSerializer.Serialize(jsonDoc.RootElement);
+                            }
+                            catch
+                            {
+                                return configJson;
+                            }
+                        }
+                        return string.Empty;
                     }
                     finally
                     {

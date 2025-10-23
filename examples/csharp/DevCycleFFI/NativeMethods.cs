@@ -54,6 +54,18 @@ internal static class NativeMethods
         IntPtr platform_data_json);
 
     /// <summary>
+    /// Initialize SDK key with all required data in one call
+    /// </summary>
+    /// <returns>0 on success, non-zero on error</returns>
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int devcycle_init_sdk_key(
+        IntPtr sdk_key,
+        IntPtr config_json,
+        IntPtr event_queue_options,
+        IntPtr client_custom_data_json,
+        IntPtr platform_data_json);
+
+    /// <summary>
     /// Generate bucketed config from populated user
     /// </summary>
     /// <returns>Pointer to CBucketedUserConfig on success, null on error</returns>
