@@ -3,7 +3,7 @@ use crate::configmanager;
 use crate::constants;
 use crate::errors;
 use crate::errors::bucket_result_error_to_default_reason;
-use crate::errors::{missing_config, missing_variation, DevCycleError};
+use crate::errors::{missing_config, missing_variable, missing_variation, DevCycleError};
 use crate::events::event::{EvalDetails, EvaluationReason};
 use crate::murmurhash::murmurhash;
 use crate::target::*;
@@ -45,15 +45,14 @@ async fn generate_bucketed_variable_for_user(
     let config = configmanager::get_config(sdk_key);
 
     if config.is_none() {
-        eprintln!("Variable called before client initialized, returning default value");
-        return Err((errors::missing_config(), EvaluationReason::Error));
+        return Err((missing_config(), EvaluationReason::Error));
     }
 
     let config = config.unwrap();
     // Get variable by key
     let variable = config.get_variable_for_key(variable_key);
     if variable.is_none() {
-        return Err((errors::missing_variable(), EvaluationReason::Disabled));
+        return Err((missing_variable(), EvaluationReason::Disabled));
     }
     let variable = variable.unwrap();
 
