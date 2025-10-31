@@ -9,6 +9,7 @@ mod tests {
     use serde_json;
     use serde_json::Value;
     use std::collections::HashMap;
+    use std::sync::Arc;
     use std::sync::Once;
 
     const TEST_SDK_KEY: &str = "test-sdk-key";
@@ -39,7 +40,7 @@ mod tests {
         serde_json::from_str(config_json).expect("Failed to parse test config v2")
     }
 
-    fn create_config_body_from_full_config(full_config: FullConfig) -> ConfigBody<'static> {
+    fn create_config_body_from_full_config(full_config: FullConfig) -> ConfigBody {
         // Parse audiences from the full config
         let mut audiences_map: HashMap<String, crate::filters::NoIdAudience> = HashMap::new();
         for (key, value) in full_config.audiences.iter() {
@@ -49,8 +50,6 @@ mod tests {
                 audiences_map.insert(key.clone(), audience);
             }
         }
-        let static_audiences: &'static HashMap<String, crate::filters::NoIdAudience> =
-            Box::leak(Box::new(audiences_map));
 
         let mut variable_id_map = HashMap::new();
         let mut variable_key_map = HashMap::new();
@@ -73,7 +72,7 @@ mod tests {
 
         let mut config = ConfigBody {
             project: full_config.project,
-            audiences: static_audiences,
+            audiences: audiences_map,
             environment: full_config.environment,
             features: full_config.features,
             variables: full_config.variables,
@@ -141,7 +140,7 @@ mod tests {
 
         // Store the config in the global CONFIGS map
         let mut configs = configmanager::CONFIGS.write().unwrap();
-        configs.insert(sdk_key, config_body.into());
+        configs.insert(sdk_key, Arc::new(config_body));
     }
 
     fn setup_test_config_v2(sdk_key: &str) {
@@ -150,7 +149,7 @@ mod tests {
 
         // Store the config in the global CONFIGS map
         let mut configs = configmanager::CONFIGS.write().unwrap();
-        configs.insert(sdk_key.to_string(), config_body.into());
+        configs.insert(sdk_key.to_string(), Arc::new(config_body));
     }
 
     #[tokio::test]
@@ -441,7 +440,7 @@ mod tests {
 
         // Store the config in the global CONFIGS map
         let mut configs = configmanager::CONFIGS.write().unwrap();
-        configs.insert(sdk_key, config_body.into());
+        configs.insert(sdk_key, Arc::new(config_body));
     }
 
     #[tokio::test]

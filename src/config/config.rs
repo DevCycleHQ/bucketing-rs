@@ -110,9 +110,9 @@ pub(crate) struct FullConfig {
     pub sse: Option<SSE>,
 }
 
-pub(crate) struct ConfigBody<'a> {
+pub(crate) struct ConfigBody {
     pub(crate) project: Project,
-    pub(crate) audiences: &'a HashMap<String, NoIdAudience>,
+    pub(crate) audiences: HashMap<String, NoIdAudience>,
     pub(crate) environment: Environment,
     pub(crate) features: Vec<ConfigFeature>,
     pub(crate) variables: Vec<Variable>,
@@ -125,7 +125,7 @@ pub(crate) struct ConfigBody<'a> {
     pub(crate) last_modified: DateTime<chrono::Utc>,
 }
 
-impl<'a> ConfigBody<'a> {
+impl ConfigBody {
     pub(crate) fn get_variable_for_key(&self, key: &str) -> Option<&Variable> {
         if let Some(variable) = self.variable_key_map.get(key) {
             return Some(variable);

@@ -9,7 +9,7 @@ mod tests {
     use std::time::Duration;
 
     // Helper function to create a test config
-    fn create_test_config(key: &str) -> ConfigBody<'static> {
+    fn create_test_config(key: &str) -> ConfigBody {
         let project = Project {
             _id: format!("proj_{}", key),
             key: key.to_string(),
@@ -41,8 +41,8 @@ mod tests {
             path: "/test".to_string(),
         };
 
-        // Create a static HashMap for audiences
-        let audiences: &'static HashMap<String, NoIdAudience> = Box::leak(Box::new(HashMap::new()));
+        // Audiences now owned, no Box::leak required
+        let audiences: HashMap<String, NoIdAudience> = HashMap::new();
 
         ConfigBody {
             project,

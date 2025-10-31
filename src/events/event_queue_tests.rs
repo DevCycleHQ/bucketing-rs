@@ -14,7 +14,7 @@ mod tests {
     use tokio::time::sleep;
 
     // Helper function to create a test config
-    fn create_test_config(key: &str) -> ConfigBody<'static> {
+    fn create_test_config(key: &str) -> ConfigBody {
         let project = Project {
             _id: format!("proj_{}", key),
             key: key.to_string(),
@@ -75,8 +75,7 @@ mod tests {
             tags: vec![],
         };
 
-        let audiences: &'static HashMap<String, crate::filters::NoIdAudience> =
-            Box::leak(Box::new(HashMap::new()));
+        let audiences: HashMap<String, crate::filters::NoIdAudience> = HashMap::new();
 
         ConfigBody {
             project,
