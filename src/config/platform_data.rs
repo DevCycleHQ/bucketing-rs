@@ -25,6 +25,7 @@ pub(crate) static PLATFORM_DATA: Lazy<RwLock<HashMap<String, Arc<PlatformData>>>
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlatformData {
     pub sdk_type: String,
     pub sdk_version: String,

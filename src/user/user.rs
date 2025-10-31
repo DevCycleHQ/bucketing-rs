@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct User {
     // Unique id to identify the user
     pub user_id: String,
@@ -29,6 +30,7 @@ pub struct User {
     // User's device model
     pub device_model: String,
     // Date the user was created, Unix epoch timestamp format
+    #[serde(default = "Utc::now")]
     pub last_seen_date: DateTime<Utc>,
 }
 
@@ -70,7 +72,9 @@ pub struct UserFeatureData<'a> {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PopulatedUser {
+    #[serde(rename = "userId")]
     pub user_id: String,
     // User's email used to identify the user on the dashboard / target audiences
     pub email: String,
@@ -81,20 +85,28 @@ pub struct PopulatedUser {
     // User's country in ISO 3166 alpha-2 format
     pub country: String,
     // App Version of the running application
+    #[serde(rename = "appVersion")]
     pub app_version: String,
     // App Build number of the running application
+    #[serde(rename = "appBuild")]
     pub app_build: String,
     // User's custom data to target the user with, data will be logged to DevCycle for use in dashboard.
+    #[serde(rename = "customData")]
     pub custom_data: HashMap<String, serde_json::Value>,
     // User's custom data to target the user with, data will not be logged to DevCycle only used for feature bucketing.
+    #[serde(rename = "privateCustomData")]
     pub private_custom_data: HashMap<String, serde_json::Value>,
     // User's device model
+    #[serde(rename = "deviceModel")]
     pub device_model: String,
     // Date the user was created, Unix epoch timestamp format
+    #[serde(rename = "lastSeenDate")]
     pub last_seen_date: DateTime<Utc>,
     // Platform data of the instance (Arc for efficient sharing across threads)
+    #[serde(rename = "platformData")]
     pub platform_data: Arc<PlatformData>,
     // Date the user was created, Unix epoch timestamp format
+    #[serde(rename = "createdDate")]
     pub created_date: DateTime<Utc>,
 }
 
@@ -153,13 +165,12 @@ impl PopulatedUser {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BucketedUserConfig {
     pub(crate) project: Project,
     pub(crate) environment: Environment,
     pub(crate) features: HashMap<String, Feature>,
-    #[serde(rename = "featureVariationMap")]
     pub(crate) feature_variation_map: HashMap<String, String>,
-    #[serde(rename = "variableVariationMap")]
     pub(crate) variable_variation_map: HashMap<String, FeatureVariation>,
     pub(crate) variables: HashMap<String, ReadOnlyVariable>,
     #[serde(skip_serializing)]

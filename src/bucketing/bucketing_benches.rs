@@ -12,7 +12,7 @@ use std::collections::HashMap;
 const BENCH_SDK_KEY: &str = "benchmark-sdk-key";
 
 // Setup functions to initialize test data
-fn setup_platform_data() {
+async fn setup_platform_data() {
     let platform_data = PlatformData {
         sdk_type: "server".to_string(),
         sdk_version: "1.0.0".to_string(),
@@ -21,10 +21,11 @@ fn setup_platform_data() {
         platform: "benchmark".to_string(),
         hostname: "localhost".to_string(),
     };
-    set_platform_data(BENCH_SDK_KEY.to_string(), platform_data);
+    set_platform_data(BENCH_SDK_KEY, platform_data).await;
 }
 
-fn create_test_user(user_id: &str) -> PopulatedUser {
+async fn create_test_user(user_id: &str) -> PopulatedUser {
+    setup_platform_data().await;
     PopulatedUser {
         user_id: user_id.to_string(),
         email: format!("{}@benchmark.com", user_id),
@@ -79,7 +80,7 @@ fn bench_generate_bucketed_config(c: &mut Criterion) {
     group.bench_function("basic_user", |b| {
         b.iter(|| {
             runtime.block_on(async {
-                let user = create_test_user("bench_user");
+                let user = create_test_user("bench_user").await;
                 let client_custom_data = HashMap::new();
 
                 generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
@@ -112,7 +113,7 @@ fn bench_generate_bucketed_config(c: &mut Criterion) {
                 b.iter(|| {
                     runtime.block_on(async move {
                         for i in 0..count {
-                            let user = create_test_user(&format!("bench_user_{}", i));
+                            let user = create_test_user(&format!("bench_user_{}", i)).await;
                             let client_custom_data = HashMap::new();
 
                             generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
@@ -143,7 +144,9 @@ fn bench_user_scenarios(c: &mut Criterion) {
             |b, &country_code| {
                 b.iter(|| {
                     runtime.block_on(async move {
-                        let mut user = create_test_user("country_bench");
+                        setup_platform_data().await;
+
+                        let mut user = create_test_user("country_bench").await;
                         user.country = country_code.to_string();
                         let client_custom_data = HashMap::new();
 
@@ -164,7 +167,9 @@ fn bench_user_scenarios(c: &mut Criterion) {
             |b, &count| {
                 b.iter(|| {
                     runtime.block_on(async move {
-                        let mut user = create_test_user("custom_data_bench");
+                        setup_platform_data().await;
+
+                        let mut user = create_test_user("custom_data_bench").await;
                         for i in 0..count {
                             user.custom_data.insert(
                                 format!("field_{}", i),
@@ -187,7 +192,6 @@ fn bench_user_scenarios(c: &mut Criterion) {
 
 // Throughput benchmark - how many requests per second
 fn bench_throughput(c: &mut Criterion) {
-    setup_platform_data();
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
     let mut group = c.benchmark_group("throughput");
@@ -196,8 +200,9 @@ fn bench_throughput(c: &mut Criterion) {
     group.bench_function("sequential_100_requests", |b| {
         b.iter(|| {
             runtime.block_on(async {
+                setup_platform_data().await;
                 for i in 0..100 {
-                    let user = create_test_user(&format!("throughput_user_{}", i));
+                    let user = create_test_user(&format!("throughput_user_{}", i)).await;
                     let client_custom_data = HashMap::new();
 
                     generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
@@ -211,8 +216,20 @@ fn bench_throughput(c: &mut Criterion) {
     group.bench_function("sequential_1000_requests", |b| {
         b.iter(|| {
             runtime.block_on(async {
+                set_platform_data(
+                    BENCH_SDK_KEY,
+                    PlatformData {
+                        sdk_type: "server".to_string(),
+                        sdk_version: "1.0.0".to_string(),
+                        platform_version: "1.0.0".to_string(),
+                        device_model: "benchmark-device".to_string(),
+                        platform: "benchmark".to_string(),
+                        hostname: "localhost".to_string(),
+                    },
+                )
+                .await;
                 for i in 0..1000 {
-                    let user = create_test_user(&format!("throughput_user_{}", i));
+                    let user = create_test_user(&format!("throughput_user_{}", i)).await;
                     let client_custom_data = HashMap::new();
 
                     generate_bucketed_config(BENCH_SDK_KEY, user, client_custom_data)
@@ -237,9 +254,11 @@ fn bench_variable_for_user(c: &mut Criterion) {
     group.bench_function("basic_user", |b| {
         b.iter(|| {
             runtime.block_on(async {
-                let user = create_test_user("bench_var_user");
+                setup_platform_data().await;
+                let user = create_test_user("bench_var_user").await;
                 let client_custom_data = HashMap::new();
                 let _ = set_client_custom_data(BENCH_SDK_KEY, client_custom_data.clone()).await;
+                let _ = init_event_queue(BENCH_SDK_KEY, EventQueueOptions::default()).await;
 
                 variable_for_user(BENCH_SDK_KEY, user, "test_variable", "String")
                     .await
@@ -252,10 +271,11 @@ fn bench_variable_for_user(c: &mut Criterion) {
     group.bench_function("user_with_custom_data", |b| {
         b.iter(|| {
             runtime.block_on(async {
+                setup_platform_data().await;
                 let user = create_test_user_with_custom_data("bench_var_user_custom");
                 let client_custom_data = HashMap::new();
                 let _ = set_client_custom_data(BENCH_SDK_KEY, client_custom_data.clone()).await;
-
+                let _ = init_event_queue(BENCH_SDK_KEY, EventQueueOptions::default()).await;
                 variable_for_user(BENCH_SDK_KEY, user, "test_variable", "String")
                     .await
                     .ok();
@@ -271,13 +291,15 @@ fn bench_variable_for_user(c: &mut Criterion) {
             |b, &count| {
                 b.iter(|| {
                     runtime.block_on(async move {
+                        setup_platform_data().await;
+
                         // Initialize event queue via manager
                         init_event_queue(BENCH_SDK_KEY, EventQueueOptions::default())
                             .await
                             .unwrap();
 
                         for i in 0..count {
-                            let user = create_test_user(&format!("bench_var_user_{}", i));
+                            let user = create_test_user(&format!("bench_var_user_{}", i)).await;
                             let client_custom_data = HashMap::new();
                             let _ =
                                 set_client_custom_data(BENCH_SDK_KEY, client_custom_data.clone())

@@ -43,6 +43,21 @@ use crate::bucketing::bucketing::VariableForUserResult;
 use crate::config::client_custom_data::get_client_custom_data;
 use crate::config::ConfigBody;
 
+pub async fn init_sdk_key(
+    sdk_key: &str,
+    config_body: ConfigBody<'static>,
+    event_queue_options: EventQueueOptions,
+    client_custom_data: HashMap<String, serde_json::Value>,
+    platform_data: PlatformData,
+) -> Result<(), DevCycleError> {
+    set_platform_data(sdk_key, platform_data).await;
+    set_client_custom_data(sdk_key, client_custom_data).await?;
+    set_config(sdk_key, config_body).await?;
+    init_event_queue(sdk_key, event_queue_options).await?;
+
+    Ok(())
+}
+
 pub async fn set_config(
     sdk_key: &str,
     config_body: ConfigBody<'static>,
@@ -114,11 +129,11 @@ pub async fn set_client_custom_data(
     sdk_key: &str,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<(), DevCycleError> {
-    if config::client_custom_data::set_client_custom_data(sdk_key.to_string(), client_custom_data)
-        .is_some()
-    {
-        Ok(())
-    } else {
-        Err(errors::failed_to_set_client_custom_data())
-    }
+    // The insert operation always succeeds, it returns the old value if one existed
+    config::client_custom_data::set_client_custom_data(sdk_key.to_string(), client_custom_data);
+    Ok(())
+}
+
+pub async fn set_platform_data(sdk_key: &str, platform_data: PlatformData) {
+    config::platform_data::set_platform_data(sdk_key.to_string(), platform_data);
 }
