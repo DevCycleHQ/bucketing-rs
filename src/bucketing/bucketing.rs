@@ -457,7 +457,7 @@ pub async fn generate_bucketed_config(
             variables.insert(
                 variable_instance.key.clone(),
                 ReadOnlyVariable {
-                    id: variable_instance._id.clone(),
+                    _id: variable_instance._id.clone(),
                     key: variable_instance.key.clone(),
                     _type: variable_instance._type.clone(),
                     value: var.value.clone(),
@@ -471,8 +471,8 @@ pub async fn generate_bucketed_config(
             variable_variation_map.insert(
                 variable_instance.key.clone(),
                 FeatureVariation {
-                    feature: feature._id.clone(),
-                    variation: variation_instance._id.clone(),
+                    _feature: feature._id.clone(),
+                    _variation: variation_instance._id.clone(),
                 },
             );
         }
