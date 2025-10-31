@@ -327,7 +327,7 @@ pub(crate) fn evaluate_segmentation_for_feature(
         }
         let operator = &target.audience.filters;
         if rollout_criteria_met
-            && operator.evaluate(config.audiences, &mut user, &client_custom_data.clone())
+            && operator.evaluate(&config.audiences, &mut user, &client_custom_data.clone())
         {
             ret = Ok((target.clone(), is_rollout.clone()));
             return ret;

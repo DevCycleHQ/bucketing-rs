@@ -184,7 +184,7 @@ impl EventQueue {
         return Ok(true);
     }
 
-    pub(crate) async fn merge_agg_event_queue_keys(&mut self, config_body: &ConfigBody<'_>) {
+    pub(crate) async fn merge_agg_event_queue_keys(&mut self, config_body: &ConfigBody) {
         let _guard = self.queue_access_mutex.lock().await;
         for event_type in [
             EventType::AggregateVariableDefaulted,

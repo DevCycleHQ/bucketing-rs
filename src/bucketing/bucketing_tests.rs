@@ -39,7 +39,7 @@ mod tests {
         serde_json::from_str(config_json).expect("Failed to parse test config v2")
     }
 
-    fn create_config_body_from_full_config(full_config: FullConfig) -> ConfigBody<'static> {
+    fn create_config_body_from_full_config(full_config: FullConfig) -> ConfigBody {
         // Parse audiences from the full config
         let mut audiences_map: HashMap<String, crate::filters::NoIdAudience> = HashMap::new();
         for (key, value) in full_config.audiences.iter() {
@@ -49,8 +49,7 @@ mod tests {
                 audiences_map.insert(key.clone(), audience);
             }
         }
-        let static_audiences: &'static HashMap<String, crate::filters::NoIdAudience> =
-            Box::leak(Box::new(audiences_map));
+        let audiences = audiences_map; // owned, no leak
 
         let mut variable_id_map = HashMap::new();
         let mut variable_key_map = HashMap::new();
@@ -73,7 +72,7 @@ mod tests {
 
         let mut config = ConfigBody {
             project: full_config.project,
-            audiences: static_audiences,
+            audiences,
             environment: full_config.environment,
             features: full_config.features,
             variables: full_config.variables,

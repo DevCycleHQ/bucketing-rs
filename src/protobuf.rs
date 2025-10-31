@@ -16,7 +16,7 @@ pub mod proto {
 #[cfg(feature = "protobuf")]
 pub fn convert_proto_to_config_body(
     proto: proto::ConfigBodyProto,
-) -> Result<ConfigBody<'static>, DevCycleError> {
+) -> Result<ConfigBody, DevCycleError> {
     // Convert Project
     let proto_project = proto
         .project
@@ -152,17 +152,13 @@ pub fn convert_proto_to_config_body(
         .single()
         .ok_or_else(|| errors::parse_error("Invalid timestamp".to_string()))?;
 
-    // Leak audiences to get 'static lifetime
-    let audiences_static = Box::leak(Box::new(audiences));
-
     Ok(ConfigBody {
         project,
-        audiences: audiences_static,
+        audiences,
         environment,
         features,
         variables,
         sse,
-
         variable_id_map,
         variable_key_map,
         variable_id_to_feature_map,
