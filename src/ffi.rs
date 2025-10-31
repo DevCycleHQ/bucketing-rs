@@ -4,14 +4,14 @@
 use crate::events::EventQueueOptions;
 use crate::user::{BucketedUserConfig, PopulatedUser, User};
 use once_cell::sync::Lazy;
+#[cfg(feature = "protobuf")]
+use prost::Message;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
-
-#[cfg(feature = "protobuf")]
-use prost::Message;
+use std::sync::Arc;
 
 // Thread-local storage for the last error message
 thread_local! {
@@ -108,6 +108,79 @@ static TOKIO_RUNTIME: Lazy<Result<tokio::runtime::Runtime, String>> =
         Err(e) => Err(format!("Failed to create Tokio runtime: {}", e)),
     });
 
+// Tolerant user JSON parsing: accepts either full User JSON or minimal {"userId":"..."} / {"user_id":"..."}
+fn parse_user_json_tolerant(json_str: &str) -> Result<User, DevCycleFFIErrorCode> {
+    // Try full deserialization first
+    if let Ok(user) = serde_json::from_str::<User>(json_str) {
+        return Ok(user);
+    }
+    let value: serde_json::Value =
+        serde_json::from_str(json_str).map_err(|_| DevCycleFFIErrorCode::JsonParseFailed)?;
+    let obj = value
+        .as_object()
+        .ok_or(DevCycleFFIErrorCode::JsonParseFailed)?;
+    let user_id = obj
+        .get("userId")
+        .or_else(|| obj.get("user_id"))
+        .and_then(|v| v.as_str())
+        .ok_or(DevCycleFFIErrorCode::JsonParseFailed)?;
+    use chrono::Utc;
+    Ok(User {
+        user_id: user_id.to_string(),
+        email: obj
+            .get("email")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        name: obj
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        language: obj
+            .get("language")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        country: obj
+            .get("country")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        app_version: obj
+            .get("appVersion")
+            .or_else(|| obj.get("app_version"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        app_build: obj
+            .get("appBuild")
+            .or_else(|| obj.get("app_build"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        custom_data: obj
+            .get("customData")
+            .or_else(|| obj.get("custom_data"))
+            .and_then(|v| v.as_object())
+            .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+            .unwrap_or_default(),
+        private_custom_data: obj
+            .get("privateCustomData")
+            .or_else(|| obj.get("private_custom_data"))
+            .and_then(|v| v.as_object())
+            .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+            .unwrap_or_default(),
+        device_model: obj
+            .get("deviceModel")
+            .or_else(|| obj.get("device_model"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        last_seen_date: Utc::now(),
+    })
+}
+
 // Helper to get runtime or set last error and return error code/null
 fn get_runtime_or_set_error() -> Option<&'static tokio::runtime::Runtime> {
     match &*TOKIO_RUNTIME {
@@ -125,6 +198,28 @@ fn set_error(msg: String, code: DevCycleFFIErrorCode) {
     set_last_error_code(code);
 }
 
+// Helper to parse SDK key C string and set appropriate errors.
+// Returns owned String so caller can safely use &str without lifetime issues.
+unsafe fn parse_sdk_key(sdk_key: *const c_char) -> Result<String, DevCycleFFIErrorCode> {
+    if sdk_key.is_null() {
+        set_error(
+            "SDK key pointer is null".to_string(),
+            DevCycleFFIErrorCode::NullPointer,
+        );
+        return Err(DevCycleFFIErrorCode::NullPointer);
+    }
+    match CStr::from_ptr(sdk_key).to_str() {
+        Ok(s) => Ok(s.to_string()),
+        Err(e) => {
+            set_error(
+                format!("Failed to convert SDK key from C string: {}", e),
+                DevCycleFFIErrorCode::SdkKeyConversionFailed,
+            );
+            Err(DevCycleFFIErrorCode::SdkKeyConversionFailed)
+        }
+    }
+}
+
 /// Initialize event queue
 /// Returns 0 on success, non-zero on error
 /// Call devcycle_get_last_error() to get detailed error message
@@ -135,23 +230,9 @@ pub unsafe extern "C" fn devcycle_init_event_queue(
 ) -> i32 {
     clear_last_error();
 
-    if sdk_key.is_null() {
-        set_error(
-            "SDK key pointer is null".to_string(),
-            DevCycleFFIErrorCode::NullPointer,
-        );
-        return DevCycleFFIErrorCode::NullPointer as i32;
-    }
-
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
         Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return DevCycleFFIErrorCode::SdkKeyConversionFailed as i32;
-        }
+        Err(code) => return code as i32,
     };
 
     let event_options = if options.is_null() {
@@ -172,7 +253,7 @@ pub unsafe extern "C" fn devcycle_init_event_queue(
         }
     };
 
-    match runtime.block_on(crate::init_event_queue(sdk_key_str, event_options)) {
+    match runtime.block_on(crate::init_event_queue(&sdk_key_str, event_options)) {
         Ok(_) => {
             set_last_error_code(DevCycleFFIErrorCode::Success);
             0
@@ -198,23 +279,17 @@ pub unsafe extern "C" fn devcycle_generate_bucketed_config(
 ) -> *mut CBucketedUserConfig {
     clear_last_error();
 
-    if sdk_key.is_null() || user.is_null() {
+    if user.is_null() {
         set_error(
-            "SDK key or user pointer is null".to_string(),
+            "User pointer is null".to_string(),
             DevCycleFFIErrorCode::NullPointer,
         );
         return ptr::null_mut();
     }
 
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
         Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return ptr::null_mut();
-        }
+        Err(_) => return ptr::null_mut(),
     };
 
     let populated_user = (*user).0.clone();
@@ -256,7 +331,7 @@ pub unsafe extern "C" fn devcycle_generate_bucketed_config(
     };
 
     match runtime.block_on(crate::generate_bucketed_config(
-        sdk_key_str,
+        &sdk_key_str,
         populated_user,
         client_custom_data,
     )) {
@@ -282,30 +357,22 @@ pub unsafe extern "C" fn devcycle_generate_bucketed_config_from_user(
 ) -> *mut CBucketedUserConfig {
     clear_last_error();
 
-    if sdk_key.is_null() || user.is_null() {
+    if user.is_null() {
         set_error(
-            "SDK key or user pointer is null".to_string(),
+            "User pointer is null".to_string(),
             DevCycleFFIErrorCode::NullPointer,
         );
         return ptr::null_mut();
     }
 
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
         Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return ptr::null_mut();
-        }
+        Err(_) => return ptr::null_mut(),
     };
 
     let user_obj = (*user).0.clone();
 
-    // Note: client_custom_data_json is ignored here because generate_bucketed_config_from_user
-    // retrieves client custom data internally. Use devcycle_set_client_custom_data first if needed.
-    let _ = client_custom_data_json; // Suppress unused parameter warning
+    let _ = client_custom_data_json; // ignored
 
     let runtime = match get_runtime_or_set_error() {
         Some(rt) => rt,
@@ -319,7 +386,7 @@ pub unsafe extern "C" fn devcycle_generate_bucketed_config_from_user(
     };
 
     match runtime.block_on(crate::generate_bucketed_config_from_user(
-        sdk_key_str,
+        &sdk_key_str,
         user_obj,
     )) {
         Ok(config) => Box::into_raw(Box::new(CBucketedUserConfig(config))),
@@ -343,23 +410,17 @@ pub unsafe extern "C" fn devcycle_set_config(
 ) -> i32 {
     clear_last_error();
 
-    if sdk_key.is_null() || config_json.is_null() {
+    if config_json.is_null() {
         set_error(
-            "SDK key or config JSON pointer is null".to_string(),
+            "Config JSON pointer is null".to_string(),
             DevCycleFFIErrorCode::NullPointer,
         );
         return DevCycleFFIErrorCode::NullPointer as i32;
     }
 
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
         Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return DevCycleFFIErrorCode::SdkKeyConversionFailed as i32;
-        }
+        Err(code) => return code as i32,
     };
 
     let config_json_str = match CStr::from_ptr(config_json).to_str() {
@@ -408,7 +469,7 @@ pub unsafe extern "C" fn devcycle_set_config(
         }
     };
 
-    match runtime.block_on(crate::set_config(sdk_key_str, config_body)) {
+    match runtime.block_on(crate::set_config(&sdk_key_str, config_body)) {
         Ok(_) => {
             set_last_error_code(DevCycleFFIErrorCode::Success);
             0
@@ -435,23 +496,17 @@ pub unsafe extern "C" fn devcycle_set_config_from_protobuf(
 ) -> i32 {
     clear_last_error();
 
-    if sdk_key.is_null() || proto_bytes.is_null() {
+    if proto_bytes.is_null() {
         set_error(
-            "SDK key or protobuf bytes pointer is null".to_string(),
+            "Protobuf bytes pointer is null".to_string(),
             DevCycleFFIErrorCode::NullPointer,
         );
         return DevCycleFFIErrorCode::NullPointer as i32;
     }
 
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
         Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return DevCycleFFIErrorCode::SdkKeyConversionFailed as i32;
-        }
+        Err(code) => return code as i32,
     };
 
     // Safety: we trust len provided by caller; create slice from raw pointer
@@ -479,7 +534,7 @@ pub unsafe extern "C" fn devcycle_set_config_from_protobuf(
         }
     };
 
-    match runtime.block_on(crate::set_config_from_protobuf(sdk_key_str, proto_msg)) {
+    match runtime.block_on(crate::set_config_from_protobuf(&sdk_key_str, proto_msg)) {
         Ok(_) => {
             set_last_error_code(DevCycleFFIErrorCode::Success);
             0
@@ -504,23 +559,17 @@ pub unsafe extern "C" fn devcycle_set_client_custom_data(
 ) -> i32 {
     clear_last_error();
 
-    if sdk_key.is_null() || custom_data_json.is_null() {
+    if custom_data_json.is_null() {
         set_error(
-            "SDK key or custom data JSON pointer is null".to_string(),
+            "Custom data JSON pointer is null".to_string(),
             DevCycleFFIErrorCode::NullPointer,
         );
         return DevCycleFFIErrorCode::NullPointer as i32;
     }
 
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
         Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return DevCycleFFIErrorCode::SdkKeyConversionFailed as i32;
-        }
+        Err(code) => return code as i32,
     };
 
     let custom_data_json_str = match CStr::from_ptr(custom_data_json).to_str() {
@@ -557,7 +606,7 @@ pub unsafe extern "C" fn devcycle_set_client_custom_data(
         }
     };
 
-    match runtime.block_on(crate::set_client_custom_data(sdk_key_str, custom_data)) {
+    match runtime.block_on(crate::set_client_custom_data(&sdk_key_str, custom_data)) {
         Ok(_) => {
             set_last_error_code(DevCycleFFIErrorCode::Success);
             0
@@ -582,24 +631,18 @@ pub unsafe extern "C" fn devcycle_set_platform_data(
 ) -> i32 {
     clear_last_error();
 
-    if sdk_key.is_null() || platform_data_json.is_null() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
+        Ok(s) => s,
+        Err(code) => return code as i32,
+    };
+
+    if platform_data_json.is_null() {
         set_error(
-            "SDK key or platform data JSON pointer is null".to_string(),
+            "Platform data JSON pointer is null".to_string(),
             DevCycleFFIErrorCode::NullPointer,
         );
         return DevCycleFFIErrorCode::NullPointer as i32;
     }
-
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return DevCycleFFIErrorCode::SdkKeyConversionFailed as i32;
-        }
-    };
 
     let platform_data_json_str = match CStr::from_ptr(platform_data_json).to_str() {
         Ok(s) => s,
@@ -634,7 +677,7 @@ pub unsafe extern "C" fn devcycle_set_platform_data(
         }
     };
 
-    runtime.block_on(crate::set_platform_data(sdk_key_str, platform_data));
+    runtime.block_on(crate::set_platform_data(&sdk_key_str, platform_data));
     set_last_error_code(DevCycleFFIErrorCode::Success);
     0
 }
@@ -653,23 +696,17 @@ pub unsafe extern "C" fn devcycle_init_sdk_key(
 ) -> i32 {
     clear_last_error();
 
-    if sdk_key.is_null() || config_json.is_null() {
+    if config_json.is_null() {
         set_error(
-            "SDK key or config JSON pointer is null".to_string(),
+            "Config JSON pointer is null".to_string(),
             DevCycleFFIErrorCode::NullPointer,
         );
         return DevCycleFFIErrorCode::NullPointer as i32;
     }
 
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
         Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return DevCycleFFIErrorCode::SdkKeyConversionFailed as i32;
-        }
+        Err(code) => return code as i32,
     };
 
     let config_json_str = match CStr::from_ptr(config_json).to_str() {
@@ -777,7 +814,7 @@ pub unsafe extern "C" fn devcycle_init_sdk_key(
     };
 
     match runtime.block_on(crate::init_sdk_key(
-        sdk_key_str,
+        &sdk_key_str,
         config_body,
         event_options,
         client_custom_data,
@@ -808,22 +845,16 @@ pub unsafe extern "C" fn devcycle_variable_for_user(
     variable_type: *const c_char,
 ) -> *mut CVariableForUserResult {
     clear_last_error();
-    if sdk_key.is_null() || user.is_null() || variable_key.is_null() || variable_type.is_null() {
+    if user.is_null() || variable_key.is_null() || variable_type.is_null() {
         set_error(
-            "One or more required pointers are null".to_string(),
+            "User, variable key, or variable type pointer is null".to_string(),
             DevCycleFFIErrorCode::NullPointer,
         );
         return ptr::null_mut();
     }
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
         Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return ptr::null_mut();
-        }
+        Err(_) => return ptr::null_mut(),
     };
     let variable_key_str = match CStr::from_ptr(variable_key).to_str() {
         Ok(s) => s,
@@ -857,7 +888,7 @@ pub unsafe extern "C" fn devcycle_variable_for_user(
         }
     };
     match runtime.block_on(crate::variable_for_user(
-        sdk_key_str,
+        &sdk_key_str,
         populated_user,
         variable_key_str,
         variable_type_str,
@@ -1047,16 +1078,18 @@ pub unsafe extern "C" fn devcycle_user_from_json(json: *const c_char) -> *mut CU
             return ptr::null_mut();
         }
     };
-    match serde_json::from_str::<User>(json_str) {
+    match parse_user_json_tolerant(json_str) {
         Ok(user) => {
             set_last_error_code(DevCycleFFIErrorCode::Success);
             Box::into_raw(Box::new(CUser(user)))
         }
-        Err(e) => {
-            set_error(
-                format!("Failed to parse user JSON: {}", e),
-                DevCycleFFIErrorCode::JsonParseFailed,
-            );
+        Err(code) => {
+            if code == DevCycleFFIErrorCode::JsonParseFailed {
+                set_error(
+                    "Failed to parse user JSON (missing required userId)".to_string(),
+                    DevCycleFFIErrorCode::JsonParseFailed,
+                );
+            }
             ptr::null_mut()
         }
     }
@@ -1070,25 +1103,19 @@ pub unsafe extern "C" fn devcycle_populate_user(
     user: *const CUser,
 ) -> *mut CPopulatedUser {
     clear_last_error();
-    if sdk_key.is_null() || user.is_null() {
+    if user.is_null() {
         set_error(
-            "SDK key or user pointer is null".to_string(),
+            "User pointer is null".to_string(),
             DevCycleFFIErrorCode::NullPointer,
         );
         return ptr::null_mut();
     }
-    let sdk_key_str = match CStr::from_ptr(sdk_key).to_str() {
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
         Ok(s) => s,
-        Err(e) => {
-            set_error(
-                format!("Failed to convert SDK key from C string: {}", e),
-                DevCycleFFIErrorCode::SdkKeyConversionFailed,
-            );
-            return ptr::null_mut();
-        }
+        Err(_) => return ptr::null_mut(),
     };
     let user_obj = (*user).0.clone();
-    let populated = user_obj.get_populated_user(sdk_key_str);
+    let populated = user_obj.get_populated_user(&sdk_key_str);
     set_last_error_code(DevCycleFFIErrorCode::Success);
     Box::into_raw(Box::new(CPopulatedUser(populated)))
 }
@@ -1339,5 +1366,326 @@ pub unsafe extern "C" fn devcycle_variable_result_to_full_json(
             );
             ptr::null_mut()
         }
+    }
+}
+
+// Helper: parse event type string to EventType
+fn parse_event_type(s: &str) -> Option<crate::events::event::EventType> {
+    use crate::events::event::EventType;
+    match s {
+        "AggregateVariableEvaluated" => Some(EventType::AggregateVariableEvaluated),
+        "AggregateVariableDefaulted" => Some(EventType::AggregateVariableDefaulted),
+        "VariableEvaluated" => Some(EventType::VariableEvaluated),
+        "VariableDefaulted" => Some(EventType::VariableDefaulted),
+        "SDKConfig" => Some(EventType::SDKConfig),
+        "CustomEvent" => Some(EventType::CustomEvent),
+        _ => None,
+    }
+}
+
+/// Queue a manual event for a raw user JSON. The user will be populated internally using platform & client custom data.
+/// Returns 0 on success, non-zero (DevCycleFFIErrorCode) on error. Use devcycle_get_last_error() for message.
+/// event_type: one of the supported EventType strings (e.g., "CustomEvent"). For manual custom events use "CustomEvent".
+/// meta_data_json: JSON object string for metadata (may be null for empty)
+#[no_mangle]
+pub unsafe extern "C" fn devcycle_queue_event(
+    sdk_key: *const c_char,
+    user_json: *const c_char,
+    event_type_str: *const c_char,
+    custom_type: *const c_char,
+    target: *const c_char,
+    value: f64,
+    meta_data_json: *const c_char,
+) -> i32 {
+    clear_last_error();
+    if user_json.is_null() || event_type_str.is_null() {
+        set_error(
+            "User JSON or event type pointer is null".to_string(),
+            DevCycleFFIErrorCode::NullPointer,
+        );
+        return DevCycleFFIErrorCode::NullPointer as i32;
+    }
+
+    let sdk_key_str = match parse_sdk_key(sdk_key) {
+        Ok(s) => s,
+        Err(code) => return code as i32,
+    };
+    let user_json_str = match CStr::from_ptr(user_json).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_error(
+                format!("Failed to convert user JSON from C string: {}", e),
+                DevCycleFFIErrorCode::InputStringConversionFailed,
+            );
+            return DevCycleFFIErrorCode::InputStringConversionFailed as i32;
+        }
+    };
+    let event_type_raw = match CStr::from_ptr(event_type_str).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_error(
+                format!("Failed to convert event type from C string: {}", e),
+                DevCycleFFIErrorCode::InputStringConversionFailed,
+            );
+            return DevCycleFFIErrorCode::InputStringConversionFailed as i32;
+        }
+    };
+
+    let event_type = match parse_event_type(event_type_raw) {
+        Some(et) => et,
+        None => {
+            set_error(
+                format!("Unsupported event type: {}", event_type_raw),
+                DevCycleFFIErrorCode::OperationFailed,
+            );
+            return DevCycleFFIErrorCode::OperationFailed as i32;
+        }
+    };
+
+    // Parse optional strings (treat null as empty string)
+    let custom_type_str = if custom_type.is_null() {
+        ""
+    } else {
+        match CStr::from_ptr(custom_type).to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_error(
+                    format!("Failed to convert custom type from C string: {}", e),
+                    DevCycleFFIErrorCode::InputStringConversionFailed,
+                );
+                return DevCycleFFIErrorCode::InputStringConversionFailed as i32;
+            }
+        }
+    };
+
+    let target_str = if target.is_null() {
+        ""
+    } else {
+        match CStr::from_ptr(target).to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_error(
+                    format!("Failed to convert target from C string: {}", e),
+                    DevCycleFFIErrorCode::InputStringConversionFailed,
+                );
+                return DevCycleFFIErrorCode::InputStringConversionFailed as i32;
+            }
+        }
+    };
+
+    // Parse metadata JSON (object) or use empty map
+    let meta_data: HashMap<String, serde_json::Value> = if meta_data_json.is_null() {
+        HashMap::new()
+    } else {
+        match CStr::from_ptr(meta_data_json).to_str() {
+            Ok(json_str) => match serde_json::from_str(json_str) {
+                Ok(map) => map,
+                Err(e) => {
+                    set_error(
+                        format!("Failed to parse meta_data JSON: {}", e),
+                        DevCycleFFIErrorCode::JsonParseFailed,
+                    );
+                    return DevCycleFFIErrorCode::JsonParseFailed as i32;
+                }
+            },
+            Err(e) => {
+                set_error(
+                    format!("Failed to convert meta_data JSON from C string: {}", e),
+                    DevCycleFFIErrorCode::InputStringConversionFailed,
+                );
+                return DevCycleFFIErrorCode::InputStringConversionFailed as i32;
+            }
+        }
+    };
+
+    // Deserialize User
+    let user: User = match parse_user_json_tolerant(user_json_str) {
+        Ok(u) => u,
+        Err(_) => {
+            set_error(
+                "Failed to parse user JSON (must include userId)".to_string(),
+                DevCycleFFIErrorCode::JsonParseFailed,
+            );
+            return DevCycleFFIErrorCode::JsonParseFailed as i32;
+        }
+    };
+
+    // Obtain runtime
+    let runtime = match get_runtime_or_set_error() {
+        Some(rt) => rt,
+        None => {
+            set_error(
+                "Runtime unavailable".to_string(),
+                DevCycleFFIErrorCode::RuntimeUnavailable,
+            );
+            return DevCycleFFIErrorCode::RuntimeUnavailable as i32;
+        }
+    };
+
+    // Get event queue
+    let event_queue = match crate::events::event_queue_manager::get_event_queue(&sdk_key_str) {
+        Some(eq) => eq,
+        None => {
+            set_error(
+                format!("Event queue not initialized for SDK key: {}", sdk_key_str),
+                DevCycleFFIErrorCode::EventQueueInitFailed,
+            );
+            return DevCycleFFIErrorCode::EventQueueInitFailed as i32;
+        }
+    };
+
+    // Build base Event
+    let mut event = crate::events::event::Event {
+        event_type,
+        target: target_str.to_string(),
+        custom_type: custom_type_str.to_string(),
+        user_id: String::new(),
+        client_date: std::time::Instant::now(),
+        value,
+        feature_vars: HashMap::new(),
+        meta_data,
+    };
+
+    // Synchronously populate user & enrich event similar to process_user_events
+    let populated_result = runtime.block_on(async {
+        // Acquire client custom data
+        let client_custom_data =
+            crate::config::client_custom_data::get_client_custom_data(sdk_key_str.to_string());
+        // Platform data already stored
+        let platform_data = match crate::config::platform_data::get_platform_data(&sdk_key_str) {
+            Ok(pd) => pd,
+            Err(e) => return Err(DevCycleFFIErrorCode::OperationFailed),
+        };
+        let populated_user = crate::user::PopulatedUser::new(
+            user.clone(),
+            platform_data.clone(),
+            client_custom_data.clone(),
+        );
+        // Generate bucketed config
+        match crate::generate_bucketed_config(
+            &sdk_key_str,
+            populated_user.clone(),
+            client_custom_data,
+        )
+        .await
+        {
+            Ok(bucketed) => {
+                event.feature_vars = bucketed.feature_variation_map;
+                if event.event_type == crate::events::event::EventType::CustomEvent {
+                    event.user_id = user.user_id.clone();
+                }
+                // Insert into user_event_queue guarded by mutex (unsafe mutable access)
+                // Safety: queue_access_mutex ensures exclusive mutation; EventQueue shared only via &Arc<EventQueue>
+                let _guard = event_queue.queue_access_mutex.lock().await;
+                let queue_ptr =
+                    Arc::as_ptr(&event_queue) as *mut crate::events::event_queue::EventQueue;
+                // SAFETY: We hold the mutex, and no other &mut exists.
+                unsafe {
+                    let queue_mut = &mut *queue_ptr;
+                    let user_id_key = user.user_id.clone();
+                    queue_mut
+                        .user_event_queue
+                        .entry(user_id_key)
+                        .or_insert_with(|| crate::events::event::UserEventsBatchRecord {
+                            user: populated_user,
+                            events: Vec::new(),
+                        })
+                        .events
+                        .push(event);
+                    queue_mut.user_event_queue_count += 1;
+                }
+                Ok(())
+            }
+            Err(_) => Err(DevCycleFFIErrorCode::OperationFailed),
+        }
+    });
+
+    match populated_result {
+        Ok(_) => {
+            set_last_error_code(DevCycleFFIErrorCode::Success);
+            0
+        }
+        Err(code) => {
+            if code == DevCycleFFIErrorCode::OperationFailed {
+                set_error(
+                    "Failed to bucket config while queueing event".to_string(),
+                    DevCycleFFIErrorCode::OperationFailed,
+                );
+            }
+            code as i32
+        }
+    }
+}
+
+#[cfg(all(test, feature = "ffi"))]
+mod ffi_tests {
+    use super::*;
+    use std::ffi::CString;
+
+    #[test]
+    fn test_init_and_queue_event() {
+        let config_json = include_str!("../tests/resources/test_config.json");
+        let sdk_key = CString::new("test-sdk-key").unwrap();
+        let config_c = CString::new(config_json).unwrap();
+        let client_data = CString::new("{}").unwrap();
+        let rc = unsafe {
+            devcycle_init_sdk_key(
+                sdk_key.as_ptr(),
+                config_c.as_ptr(),
+                std::ptr::null(),
+                client_data.as_ptr(),
+                std::ptr::null(),
+            )
+        };
+        if rc != 0 {
+            // Attempt to fetch error message safely
+            let err_ptr = unsafe { devcycle_get_last_error() };
+            if !err_ptr.is_null() {
+                let err = unsafe { CStr::from_ptr(err_ptr).to_string_lossy().into_owned() };
+                unsafe { devcycle_free_string(err_ptr) };
+                panic!("init_sdk_key failed rc={}, err={}", rc, err);
+            } else {
+                panic!("init_sdk_key failed rc={} with null error string", rc);
+            }
+        }
+        assert!(
+            crate::events::event_queue_manager::get_event_queue("test-sdk-key").is_some(),
+            "Event queue should be initialized"
+        );
+
+        let user_json = CString::new("{\"userId\":\"user-1\"}").unwrap();
+        let event_type = CString::new("CustomEvent").unwrap();
+        let custom_type = CString::new("purchase").unwrap();
+        let target = CString::new("sku-123").unwrap();
+        let meta = CString::new("{\"amount\": 19.99}").unwrap();
+        let queue_rc = unsafe {
+            devcycle_queue_event(
+                sdk_key.as_ptr(),
+                user_json.as_ptr(),
+                event_type.as_ptr(),
+                custom_type.as_ptr(),
+                target.as_ptr(),
+                19.99,
+                meta.as_ptr(),
+            )
+        };
+        if queue_rc != 0 {
+            let err_ptr = unsafe { devcycle_get_last_error() };
+            let err = if !err_ptr.is_null() {
+                unsafe { CStr::from_ptr(err_ptr).to_string_lossy().into_owned() }
+            } else {
+                "<null>".to_string()
+            };
+            if !err_ptr.is_null() {
+                unsafe { devcycle_free_string(err_ptr) };
+            }
+            panic!("queue_event failed rc={}, err={}", queue_rc, err);
+        }
+        let eq = crate::events::event_queue_manager::get_event_queue("test-sdk-key").unwrap();
+        // Access underlying struct for count (Arc deref)
+        assert!(
+            eq.user_event_queue_count > 0,
+            "Expected user_event_queue_count > 0 after queueing event"
+        );
     }
 }
