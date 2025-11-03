@@ -103,8 +103,8 @@ class Program
                     CustomData = new Dictionary<string, object> { { "plan", "premium" }, { "age", 25 } }
                 });
 
-                // Warm-up
-                client.GenerateBucketedConfigSilent(user);
+                // Warm-up (raw generation)
+                client.GenerateBucketedConfigRaw(user);
 
                 Measure("Benchmark bucketed config generation", () =>
                 {
@@ -292,7 +292,7 @@ class Program
         for (int i = 0; i < runs; i++)
         {
             long start = Stopwatch.GetTimestamp();
-            client.GenerateBucketedConfigSilent(user);
+            client.GenerateBucketedConfigRaw(user);
             long end = Stopwatch.GetTimestamp();
             double ms = TicksToMs(end - start);
             times.Add(ms);

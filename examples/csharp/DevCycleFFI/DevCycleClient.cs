@@ -22,23 +22,17 @@ public class DevCycleClient : IDisposable
     /// <summary>
     /// Helper method to get the last error message from the FFI layer
     /// </summary>
-    private static string GetLastFFIError()
+    private static (NativeMethods.DevCycleFFIErrorCode code, string message) GetLastErrorDetails()
     {
-        var errorPtr = NativeMethods.devcycle_get_last_error();
-        if (errorPtr == IntPtr.Zero)
+        var code = NativeMethods.devcycle_get_last_error_code();
+        var msgPtr = NativeMethods.devcycle_get_last_error();
+        string msg = "";
+        if (msgPtr != IntPtr.Zero)
         {
-            return "No detailed error available";
+            try { msg = Marshal.PtrToStringAnsi(msgPtr) ?? ""; }
+            finally { NativeMethods.devcycle_free_string(msgPtr); }
         }
-
-        try
-        {
-            var errorMessage = Marshal.PtrToStringAnsi(errorPtr);
-            return errorMessage ?? "Unknown error";
-        }
-        finally
-        {
-            NativeMethods.devcycle_free_string(errorPtr);
-        }
+        return (code, string.IsNullOrWhiteSpace(msg) ? "No detailed error available" : msg);
     }
 
     /// <summary>
@@ -61,9 +55,8 @@ public class DevCycleClient : IDisposable
 
             if (result != 0)
             {
-                var detailedError = GetLastFFIError();
-                LogDebug($"Detailed error from FFI: {detailedError}");
-                throw new DevCycleException($"Failed to initialize event queue (error code {result}): {detailedError}");
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to initialize event queue (code {(int)code}): {msg}");
             }
 
             LogDebug("Event queue initialized successfully");
@@ -109,9 +102,8 @@ public class DevCycleClient : IDisposable
 
             if (result != 0)
             {
-                var detailedError = GetLastFFIError();
-                LogDebug($"Detailed error from FFI: {detailedError}");
-                throw new DevCycleException($"Failed to set config (error code {result}): {detailedError}");
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to set config (code {(int)code}): {msg}");
             }
 
             LogDebug("Config set successfully");
@@ -156,9 +148,8 @@ public class DevCycleClient : IDisposable
 
             if (result != 0)
             {
-                var detailedError = GetLastFFIError();
-                LogDebug($"Detailed error from FFI: {detailedError}");
-                throw new DevCycleException($"Failed to set client custom data (error code {result}): {detailedError}");
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to set client custom data (code {(int)code}): {msg}");
             }
 
             LogDebug("Client custom data set successfully");
@@ -203,9 +194,8 @@ public class DevCycleClient : IDisposable
 
             if (result != 0)
             {
-                var detailedError = GetLastFFIError();
-                LogDebug($"Detailed error from FFI: {detailedError}");
-                throw new DevCycleException($"Failed to set platform data (error code {result}): {detailedError}");
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to set platform data (code {(int)code}): {msg}");
             }
 
             LogDebug("Platform data set successfully");
@@ -270,7 +260,7 @@ public class DevCycleClient : IDisposable
             var result = NativeMethods.devcycle_init_sdk_key(
                 sdkKeyPtr,
                 configPtr,
-                initializeEventQueue ? IntPtr.Zero : IntPtr.Zero,  // event queue options (null for default)
+                initializeEventQueue ? IntPtr.Zero : IntPtr.Zero,
                 customDataPtr == IntPtr.Zero ? IntPtr.Zero : customDataPtr,
                 platformDataPtr);
 
@@ -278,9 +268,8 @@ public class DevCycleClient : IDisposable
 
             if (result != 0)
             {
-                var detailedError = GetLastFFIError();
-                LogDebug($"Detailed error from FFI: {detailedError}");
-                throw new DevCycleException($"Failed to initialize SDK key (error code {result}): {detailedError}");
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to initialize SDK key (code {(int)code}): {msg}");
             }
 
             LogDebug("SDK key initialized successfully");
@@ -304,273 +293,199 @@ public class DevCycleClient : IDisposable
     }
 
     /// <summary>
-    /// Generate bucketed config for a user
+    /// Queue a manual event for the provided user (raw user JSON passed). Requires event queue initialized.
     /// </summary>
-    public string GenerateBucketedConfig(DevCycleUser user)
+    public void QueueEvent(DevCycleUser user, string eventType, string? customType = null, string? target = null, double value = 0.0, Dictionary<string, object>? metaData = null)
     {
-        if (user == null)
-            throw new ArgumentNullException(nameof(user));
-
+        if (user == null) throw new ArgumentNullException(nameof(user));
+        if (string.IsNullOrWhiteSpace(eventType)) throw new ArgumentNullException(nameof(eventType));
         var userJson = System.Text.Json.JsonSerializer.Serialize(user);
-        LogDebug($"User JSON being sent: {userJson}");
-
-        var sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
-        var userPtr = Marshal.StringToHGlobalAnsi(userJson);
+        var metaJson = metaData != null ? System.Text.Json.JsonSerializer.Serialize(metaData) : null;
+        IntPtr sdkKeyPtr = IntPtr.Zero; IntPtr userPtr = IntPtr.Zero; IntPtr eventTypePtr = IntPtr.Zero; IntPtr customTypePtr = IntPtr.Zero; IntPtr targetPtr = IntPtr.Zero; IntPtr metaPtr = IntPtr.Zero;
         try
         {
-            // First create user object from JSON
-            LogDebug("Calling devcycle_user_from_json...");
-            var cUserPtr = NativeMethods.devcycle_user_from_json(userPtr);
-            if (cUserPtr == IntPtr.Zero)
+            sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
+            userPtr = Marshal.StringToHGlobalAnsi(userJson);
+            eventTypePtr = Marshal.StringToHGlobalAnsi(eventType);
+            if (!string.IsNullOrEmpty(customType)) customTypePtr = Marshal.StringToHGlobalAnsi(customType);
+            if (!string.IsNullOrEmpty(target)) targetPtr = Marshal.StringToHGlobalAnsi(target);
+            if (metaJson != null) metaPtr = Marshal.StringToHGlobalAnsi(metaJson);
+            var rc = NativeMethods.devcycle_queue_event(sdkKeyPtr, userPtr, eventTypePtr, customTypePtr, targetPtr, value, metaPtr);
+            if (rc != 0)
             {
-                var detailedError = GetLastFFIError();
-                LogDebug($"Detailed error from FFI: {detailedError}");
-                throw new DevCycleException($"Failed to create user from JSON: {detailedError}");
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to queue event (code {(int)code}): {msg}");
             }
-            LogDebug($"User created successfully, pointer: 0x{cUserPtr:X}");
-
-            try
-            {
-                var configPtr = NativeMethods.devcycle_generate_bucketed_config_from_user(
-                    sdkKeyPtr, cUserPtr);
-
-                if (configPtr == IntPtr.Zero)
-                {
-                    var detailedError = GetLastFFIError();
-                    LogDebug($"Detailed error from FFI: {detailedError}");
-                    throw new DevCycleException($"Failed to generate bucketed config: {detailedError}");
-                }
-
-                try
-                {
-                    // Get the JSON representation of the bucketed config
-                    LogDebug("Converting bucketed config to JSON...");
-                    var jsonPtr = NativeMethods.devcycle_bucketed_config_to_json(configPtr);
-
-                    if (jsonPtr == IntPtr.Zero)
-                    {
-                        var detailedError = GetLastFFIError();
-                        LogDebug($"Warning: Failed to serialize config to JSON: {detailedError}");
-                        return "Config generated successfully (but could not serialize to JSON)";
-                    }
-
-                    try
-                    {
-                        var configJson = Marshal.PtrToStringAnsi(jsonPtr);
-                        if (configJson != null)
-                        {
-                            // Pretty print the JSON
-                            try
-                            {
-                                var jsonDoc = System.Text.Json.JsonDocument.Parse(configJson);
-                                var prettyJson = System.Text.Json.JsonSerializer.Serialize(
-                                    jsonDoc.RootElement,
-                                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-                                );
-                                Console.WriteLine("\n=== Bucketed Config JSON ===");
-                                Console.WriteLine(prettyJson);
-                                Console.WriteLine("============================\n");
-                                return prettyJson;
-                            }
-                            catch
-                            {
-                                // If pretty printing fails, just return the raw JSON
-                                Console.WriteLine("\n=== Bucketed Config JSON ===");
-                                Console.WriteLine(configJson);
-                                Console.WriteLine("============================\n");
-                                return configJson;
-                            }
-                        }
-                        return "Config generated successfully";
-                    }
-                    finally
-                    {
-                        if (jsonPtr != IntPtr.Zero)
-                            NativeMethods.devcycle_free_string(jsonPtr);
-                    }
-                }
-                finally
-                {
-                    NativeMethods.devcycle_free_bucketed_config(configPtr);
-                }
-            }
-            finally
-            {
-                NativeMethods.devcycle_free_user(cUserPtr);
-            }
+            LogDebug($"Queued event '{eventType}' for user {user.UserId}");
         }
         finally
         {
-            Marshal.FreeHGlobal(sdkKeyPtr);
-            Marshal.FreeHGlobal(userPtr);
-        }
-    }
-
-    // Silent variant for benchmarking: no console output except debug
-    public string GenerateBucketedConfigSilent(DevCycleUser user)
-    {
-        if (user == null)
-            throw new ArgumentNullException(nameof(user));
-
-        var userJson = System.Text.Json.JsonSerializer.Serialize(user);
-        LogDebug($"User JSON being sent: {userJson}");
-
-        var sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
-        var userPtr = Marshal.StringToHGlobalAnsi(userJson);
-        try
-        {
-            var cUserPtr = NativeMethods.devcycle_user_from_json(userPtr);
-            if (cUserPtr == IntPtr.Zero)
-            {
-                var detailedError = GetLastFFIError();
-                throw new DevCycleException($"Failed to create user from JSON: {detailedError}");
-            }
-
-            try
-            {
-                var configPtr = NativeMethods.devcycle_generate_bucketed_config_from_user(sdkKeyPtr, cUserPtr);
-                if (configPtr == IntPtr.Zero)
-                {
-                    var detailedError = GetLastFFIError();
-                    throw new DevCycleException($"Failed to generate bucketed config: {detailedError}");
-                }
-
-                try
-                {
-                    var jsonPtr = NativeMethods.devcycle_bucketed_config_to_json(configPtr);
-                    if (jsonPtr == IntPtr.Zero)
-                    {
-                        var detailedError = GetLastFFIError();
-                        LogDebug($"Warning: Failed to serialize config to JSON: {detailedError}");
-                        return string.Empty;
-                    }
-                    try
-                    {
-                        var configJson = Marshal.PtrToStringAnsi(jsonPtr);
-                        if (configJson != null)
-                        {
-                            // Attempt pretty-print (cost negligible for benchmarking correctness)
-                            try
-                            {
-                                var jsonDoc = System.Text.Json.JsonDocument.Parse(configJson);
-                                return System.Text.Json.JsonSerializer.Serialize(jsonDoc.RootElement);
-                            }
-                            catch
-                            {
-                                return configJson;
-                            }
-                        }
-                        return string.Empty;
-                    }
-                    finally
-                    {
-                        if (jsonPtr != IntPtr.Zero)
-                            NativeMethods.devcycle_free_string(jsonPtr);
-                    }
-                }
-                finally
-                {
-                    NativeMethods.devcycle_free_bucketed_config(configPtr);
-                }
-            }
-            finally
-            {
-                NativeMethods.devcycle_free_user(cUserPtr);
-            }
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(sdkKeyPtr);
-            Marshal.FreeHGlobal(userPtr);
+            if (sdkKeyPtr != IntPtr.Zero) Marshal.FreeHGlobal(sdkKeyPtr);
+            if (userPtr != IntPtr.Zero) Marshal.FreeHGlobal(userPtr);
+            if (eventTypePtr != IntPtr.Zero) Marshal.FreeHGlobal(eventTypePtr);
+            if (customTypePtr != IntPtr.Zero) Marshal.FreeHGlobal(customTypePtr);
+            if (targetPtr != IntPtr.Zero) Marshal.FreeHGlobal(targetPtr);
+            if (metaPtr != IntPtr.Zero) Marshal.FreeHGlobal(metaPtr);
         }
     }
 
     /// <summary>
-    /// Get a variable value for a user
+    /// Generate bucketed config for the currently set user (preferred). Falls back to ephemeral if no user set.
     /// </summary>
-    public VariableResult GetVariableForUser(DevCycleUser user, string variableKey, string variableType)
+    public string GenerateBucketedConfig(DevCycleUser user)
     {
-        if (user == null)
-            throw new ArgumentNullException(nameof(user));
-        if (string.IsNullOrEmpty(variableKey))
-            throw new ArgumentNullException(nameof(variableKey));
-        if (string.IsNullOrEmpty(variableType))
-            throw new ArgumentNullException(nameof(variableType));
-
-        var userJson = System.Text.Json.JsonSerializer.Serialize(user);
-
-        var sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
-        var userJsonPtr = Marshal.StringToHGlobalAnsi(userJson);
-        var variableKeyPtr = Marshal.StringToHGlobalAnsi(variableKey);
-        var variableTypePtr = Marshal.StringToHGlobalAnsi(variableType);
-
+        if (user == null) throw new ArgumentNullException(nameof(user));
+        // Use the FFI function which takes a CUser directly; Rust side handles internal custom/platform data.
+        IntPtr sdkKeyPtr = IntPtr.Zero; IntPtr userJsonPtr = IntPtr.Zero; IntPtr cUserPtr = IntPtr.Zero; IntPtr bucketedPtr = IntPtr.Zero; IntPtr jsonPtr = IntPtr.Zero;
         try
         {
-            // Create user object from JSON - note: this creates a populated user
-            // In a real scenario, you might need a separate function for PopulatedUser
-            var cUserPtr = NativeMethods.devcycle_user_from_json(userJsonPtr);
+            sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
+            var userJson = System.Text.Json.JsonSerializer.Serialize(user);
+            userJsonPtr = Marshal.StringToHGlobalAnsi(userJson);
+            cUserPtr = NativeMethods.devcycle_user_from_json(userJsonPtr);
             if (cUserPtr == IntPtr.Zero)
             {
-                var detailedError = GetLastFFIError();
-                throw new DevCycleException($"Failed to create user from JSON: {detailedError}");
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to create user (code {(int)code}): {msg}");
             }
-
-            try
+            bucketedPtr = NativeMethods.devcycle_generate_bucketed_config_from_user(sdkKeyPtr, cUserPtr);
+            if (bucketedPtr == IntPtr.Zero)
             {
-                // For this example, we'll assume the user pointer works as PopulatedUser
-                // In production, you'd need proper conversion
-                var resultPtr = NativeMethods.devcycle_variable_for_user(
-                    sdkKeyPtr, cUserPtr, variableKeyPtr, variableTypePtr);
-
-                if (resultPtr == IntPtr.Zero)
-                {
-                    var detailedError = GetLastFFIError();
-                    throw new DevCycleException($"Failed to get variable for user: {detailedError}");
-                }
-
-                try
-                {
-                    // Get the variable value as JSON
-                    var valueJsonPtr = NativeMethods.devcycle_variable_result_to_json(resultPtr);
-                    var typePtr = NativeMethods.devcycle_variable_result_get_type(resultPtr);
-
-                    try
-                    {
-                        var valueJson = Marshal.PtrToStringAnsi(valueJsonPtr) ?? "null";
-                        var type = Marshal.PtrToStringAnsi(typePtr) ?? "unknown";
-
-                        return new VariableResult
-                        {
-                            Value = valueJson,
-                            Type = type
-                        };
-                    }
-                    finally
-                    {
-                        if (valueJsonPtr != IntPtr.Zero)
-                            NativeMethods.devcycle_free_string(valueJsonPtr);
-                        if (typePtr != IntPtr.Zero)
-                            NativeMethods.devcycle_free_string(typePtr);
-                    }
-                }
-                finally
-                {
-                    NativeMethods.devcycle_free_variable_result(resultPtr);
-                }
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to generate bucketed config (code {(int)code}): {msg}");
             }
-            finally
+            jsonPtr = NativeMethods.devcycle_bucketed_config_to_json(bucketedPtr);
+            if (jsonPtr == IntPtr.Zero)
             {
-                NativeMethods.devcycle_free_user(cUserPtr);
+                var (code, msg) = GetLastErrorDetails();
+                return $"Config generated but JSON serialization failed (code {(int)code}): {msg}";
             }
+            var raw = Marshal.PtrToStringAnsi(jsonPtr) ?? string.Empty;
+            try { var doc = System.Text.Json.JsonDocument.Parse(raw); return System.Text.Json.JsonSerializer.Serialize(doc.RootElement, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }); }
+            catch { return raw; }
         }
         finally
         {
-            Marshal.FreeHGlobal(sdkKeyPtr);
-            Marshal.FreeHGlobal(userJsonPtr);
-            Marshal.FreeHGlobal(variableKeyPtr);
-            Marshal.FreeHGlobal(variableTypePtr);
+            if (sdkKeyPtr != IntPtr.Zero) Marshal.FreeHGlobal(sdkKeyPtr);
+            if (userJsonPtr != IntPtr.Zero) Marshal.FreeHGlobal(userJsonPtr);
+            if (jsonPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(jsonPtr);
+            if (bucketedPtr != IntPtr.Zero) NativeMethods.devcycle_free_bucketed_config(bucketedPtr);
+            if (cUserPtr != IntPtr.Zero) NativeMethods.devcycle_free_user(cUserPtr);
         }
     }
+
+    /// <summary>
+    /// Generate bucketed config for the currently set user (preferred). Falls back to ephemeral if no user set.
+    /// </summary>
+    public string GenerateBucketedConfigRaw(DevCycleUser user)
+    {
+        if (user == null) throw new ArgumentNullException(nameof(user));
+        IntPtr sdkKeyPtr = IntPtr.Zero; IntPtr userJsonPtr = IntPtr.Zero; IntPtr cUserPtr = IntPtr.Zero; IntPtr bucketedPtr = IntPtr.Zero; IntPtr jsonPtr = IntPtr.Zero;
+        try
+        {
+            sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
+            var userJson = System.Text.Json.JsonSerializer.Serialize(user);
+            userJsonPtr = Marshal.StringToHGlobalAnsi(userJson);
+            cUserPtr = NativeMethods.devcycle_user_from_json(userJsonPtr);
+            if (cUserPtr == IntPtr.Zero)
+            {
+                var (code, msg) = GetLastErrorDetails();
+                return $"error:create_user:{(int)code}:{msg}";
+            }
+            bucketedPtr = NativeMethods.devcycle_generate_bucketed_config_from_user(sdkKeyPtr, cUserPtr);
+            if (bucketedPtr == IntPtr.Zero)
+            {
+                var (code, msg) = GetLastErrorDetails();
+                return $"error:bucket_config:{(int)code}:{msg}";
+            }
+            jsonPtr = NativeMethods.devcycle_bucketed_config_to_json(bucketedPtr);
+            if (jsonPtr == IntPtr.Zero)
+            {
+                var (code, msg) = GetLastErrorDetails();
+                return $"error:serialize_config:{(int)code}:{msg}";
+            }
+            return Marshal.PtrToStringAnsi(jsonPtr) ?? string.Empty;
+        }
+        finally
+        {
+            if (sdkKeyPtr != IntPtr.Zero) Marshal.FreeHGlobal(sdkKeyPtr);
+            if (userJsonPtr != IntPtr.Zero) Marshal.FreeHGlobal(userJsonPtr);
+            if (jsonPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(jsonPtr);
+            if (bucketedPtr != IntPtr.Zero) NativeMethods.devcycle_free_bucketed_config(bucketedPtr);
+            if (cUserPtr != IntPtr.Zero) NativeMethods.devcycle_free_user(cUserPtr);
+        }
+    }
+
+    /// <summary>
+    /// Full variable evaluation returning metadata and error details if any.
+    /// </summary>
+    public VariableFullResult GetVariableForUser(DevCycleUser user, string variableKey, string variableType)
+    {
+        if (user == null) throw new ArgumentNullException(nameof(user));
+        if (string.IsNullOrWhiteSpace(variableKey)) throw new ArgumentNullException(nameof(variableKey));
+        if (string.IsNullOrWhiteSpace(variableType)) throw new ArgumentNullException(nameof(variableType));
+        IntPtr sdkKeyPtr = IntPtr.Zero; IntPtr userJsonPtr = IntPtr.Zero; IntPtr cUserPtr = IntPtr.Zero; IntPtr populatedPtr = IntPtr.Zero; IntPtr keyPtr = IntPtr.Zero; IntPtr typePtr = IntPtr.Zero; IntPtr resultPtr = IntPtr.Zero;
+        IntPtr valPtr = IntPtr.Zero; IntPtr typeResPtr = IntPtr.Zero; IntPtr featurePtr = IntPtr.Zero; IntPtr variationPtr = IntPtr.Zero; IntPtr evalPtr = IntPtr.Zero; IntPtr errPtr = IntPtr.Zero;
+        var variableResult = new VariableFullResult();
+        try
+        {
+            sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
+            keyPtr = Marshal.StringToHGlobalAnsi(variableKey);
+            typePtr = Marshal.StringToHGlobalAnsi(variableType);
+            var userJson = System.Text.Json.JsonSerializer.Serialize(user);
+            userJsonPtr = Marshal.StringToHGlobalAnsi(userJson);
+            cUserPtr = NativeMethods.devcycle_user_from_json(userJsonPtr);
+            if (cUserPtr == IntPtr.Zero)
+            {
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to create user (code {(int)code}): {msg}");
+            }
+            populatedPtr = NativeMethods.devcycle_populate_user(sdkKeyPtr, cUserPtr);
+            if (populatedPtr == IntPtr.Zero)
+            {
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Failed to populate user (code {(int)code}): {msg}");
+            }
+            resultPtr = NativeMethods.devcycle_variable_for_user(sdkKeyPtr, populatedPtr, keyPtr, typePtr);
+            if (resultPtr == IntPtr.Zero)
+            {
+                var (code, msg) = GetLastErrorDetails();
+                throw new DevCycleException($"Variable evaluation failed (code {(int)code}): {msg}");
+            }
+            var isErrInt = NativeMethods.devcycle_variable_result_is_error(resultPtr); variableResult.IsError = isErrInt == 1;
+            valPtr = NativeMethods.devcycle_variable_result_to_json(resultPtr);
+            typeResPtr = NativeMethods.devcycle_variable_result_get_type(resultPtr);
+            featurePtr = NativeMethods.devcycle_variable_result_get_feature_id(resultPtr);
+            variationPtr = NativeMethods.devcycle_variable_result_get_variation_id(resultPtr);
+            evalPtr = NativeMethods.devcycle_variable_result_get_evaluation_reason(resultPtr);
+            if (variableResult.IsError) errPtr = NativeMethods.devcycle_variable_result_get_error(resultPtr);
+            variableResult.RawValueJson = valPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(valPtr) ?? "null" : "null";
+            variableResult.VariableType = typeResPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(typeResPtr) ?? "unknown" : "unknown";
+            variableResult.FeatureId = featurePtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(featurePtr) ?? string.Empty : string.Empty;
+            variableResult.VariationId = variationPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(variationPtr) ?? string.Empty : string.Empty;
+            variableResult.EvaluationReason = evalPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(evalPtr) ?? string.Empty : string.Empty;
+            if (variableResult.IsError) variableResult.ErrorMessage = errPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errPtr) ?? string.Empty : string.Empty;
+            return variableResult;
+        }
+        finally
+        {
+            if (valPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(valPtr);
+            if (typeResPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(typeResPtr);
+            if (featurePtr != IntPtr.Zero) NativeMethods.devcycle_free_string(featurePtr);
+            if (variationPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(variationPtr);
+            if (evalPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(evalPtr);
+            if (errPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(errPtr);
+            if (resultPtr != IntPtr.Zero) NativeMethods.devcycle_free_variable_result(resultPtr);
+            if (populatedPtr != IntPtr.Zero) NativeMethods.devcycle_free_populated_user(populatedPtr);
+            if (cUserPtr != IntPtr.Zero) NativeMethods.devcycle_free_user(cUserPtr);
+            if (sdkKeyPtr != IntPtr.Zero) Marshal.FreeHGlobal(sdkKeyPtr);
+            if (userJsonPtr != IntPtr.Zero) Marshal.FreeHGlobal(userJsonPtr);
+            if (keyPtr != IntPtr.Zero) Marshal.FreeHGlobal(keyPtr);
+            if (typePtr != IntPtr.Zero) Marshal.FreeHGlobal(typePtr);
+        }
+    }
+
+    private string _lastUserId = string.Empty;
 
     public void Dispose()
     {
@@ -582,7 +497,7 @@ public class DevCycleClient : IDisposable
     {
         if (!_disposed)
         {
-            // Clean up any resources if needed
+            // No persistent native user resources to free now.
             _disposed = true;
         }
     }
@@ -698,4 +613,19 @@ public class DevCycleException : Exception
     public DevCycleException(string message) : base(message) { }
     public DevCycleException(string message, Exception innerException)
         : base(message, innerException) { }
+}
+
+/// <summary>
+/// Represents the result of a variable evaluation, including metadata and error details
+/// </summary>
+public class VariableFullResult
+{
+    public string RawValueJson { get; set; } = string.Empty; // JSON-encoded value
+    public string VariableType { get; set; } = string.Empty;
+    public string FeatureId { get; set; } = string.Empty;
+    public string VariationId { get; set; } = string.Empty;
+    public string EvaluationReason { get; set; } = string.Empty;
+    public bool IsError { get; set; }
+    public string ErrorMessage { get; set; } = string.Empty;
+    public override string ToString() => IsError ? $"ERROR({ErrorMessage})" : RawValueJson;
 }
