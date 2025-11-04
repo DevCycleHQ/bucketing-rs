@@ -424,14 +424,16 @@ public class DevCycleClient : IDisposable
         if (user == null) throw new ArgumentNullException(nameof(user));
         if (string.IsNullOrWhiteSpace(variableKey)) throw new ArgumentNullException(nameof(variableKey));
         if (string.IsNullOrWhiteSpace(variableType)) throw new ArgumentNullException(nameof(variableType));
+        string normType = NormalizeVariableType(variableType);
+        LogDebug($"Variable evaluation start: key='{variableKey}', requestedType='{variableType}', normalizedType='{normType}'");
         IntPtr sdkKeyPtr = IntPtr.Zero; IntPtr userJsonPtr = IntPtr.Zero; IntPtr cUserPtr = IntPtr.Zero; IntPtr populatedPtr = IntPtr.Zero; IntPtr keyPtr = IntPtr.Zero; IntPtr typePtr = IntPtr.Zero; IntPtr resultPtr = IntPtr.Zero;
-        IntPtr valPtr = IntPtr.Zero; IntPtr typeResPtr = IntPtr.Zero; IntPtr featurePtr = IntPtr.Zero; IntPtr variationPtr = IntPtr.Zero; IntPtr evalPtr = IntPtr.Zero; IntPtr errPtr = IntPtr.Zero;
+        IntPtr valPtr = IntPtr.Zero; IntPtr typeResPtr = IntPtr.Zero; IntPtr featurePtr = IntPtr.Zero; IntPtr variationPtr = IntPtr.Zero; IntPtr evalPtr = IntPtr.Zero; IntPtr errPtr = IntPtr.Zero; IntPtr fullPtr = IntPtr.Zero;
         var variableResult = new VariableFullResult();
         try
         {
             sdkKeyPtr = Marshal.StringToHGlobalAnsi(_sdkKey);
             keyPtr = Marshal.StringToHGlobalAnsi(variableKey);
-            typePtr = Marshal.StringToHGlobalAnsi(variableType);
+            typePtr = Marshal.StringToHGlobalAnsi(normType);
             var userJson = System.Text.Json.JsonSerializer.Serialize(user);
             userJsonPtr = Marshal.StringToHGlobalAnsi(userJson);
             cUserPtr = NativeMethods.devcycle_user_from_json(userJsonPtr);
@@ -450,10 +452,16 @@ public class DevCycleClient : IDisposable
             if (resultPtr == IntPtr.Zero)
             {
                 var (code, msg) = GetLastErrorDetails();
+                LogDebug($"Native variable_for_user returned null. code={(int)code} message='{msg}'");
                 throw new DevCycleException($"Variable evaluation failed (code {(int)code}): {msg}");
             }
-            var isErrInt = NativeMethods.devcycle_variable_result_is_error(resultPtr); variableResult.IsError = isErrInt == 1;
+            fullPtr = NativeMethods.devcycle_variable_result_to_full_json(resultPtr);
+            if (fullPtr != IntPtr.Zero)
+            {
+                variableResult.FullJson = Marshal.PtrToStringAnsi(fullPtr) ?? string.Empty;
+            }
             valPtr = NativeMethods.devcycle_variable_result_to_json(resultPtr);
+            variableResult.IsError = NativeMethods.devcycle_variable_result_is_error(resultPtr) == 1;
             typeResPtr = NativeMethods.devcycle_variable_result_get_type(resultPtr);
             featurePtr = NativeMethods.devcycle_variable_result_get_feature_id(resultPtr);
             variationPtr = NativeMethods.devcycle_variable_result_get_variation_id(resultPtr);
@@ -465,6 +473,7 @@ public class DevCycleClient : IDisposable
             variableResult.VariationId = variationPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(variationPtr) ?? string.Empty : string.Empty;
             variableResult.EvaluationReason = evalPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(evalPtr) ?? string.Empty : string.Empty;
             if (variableResult.IsError) variableResult.ErrorMessage = errPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errPtr) ?? string.Empty : string.Empty;
+            LogDebug($"Variable evaluation complete. isError={variableResult.IsError} featureId='{variableResult.FeatureId}' variationId='{variableResult.VariationId}' reason='{variableResult.EvaluationReason}' valueJson='{variableResult.RawValueJson}' error='{variableResult.ErrorMessage}'");
             return variableResult;
         }
         finally
@@ -475,6 +484,7 @@ public class DevCycleClient : IDisposable
             if (variationPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(variationPtr);
             if (evalPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(evalPtr);
             if (errPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(errPtr);
+            if (fullPtr != IntPtr.Zero) NativeMethods.devcycle_free_string(fullPtr);
             if (resultPtr != IntPtr.Zero) NativeMethods.devcycle_free_variable_result(resultPtr);
             if (populatedPtr != IntPtr.Zero) NativeMethods.devcycle_free_populated_user(populatedPtr);
             if (cUserPtr != IntPtr.Zero) NativeMethods.devcycle_free_user(cUserPtr);
@@ -483,6 +493,25 @@ public class DevCycleClient : IDisposable
             if (keyPtr != IntPtr.Zero) Marshal.FreeHGlobal(keyPtr);
             if (typePtr != IntPtr.Zero) Marshal.FreeHGlobal(typePtr);
         }
+    }
+
+    private static string NormalizeVariableType(string variableType)
+    {
+        if (string.IsNullOrWhiteSpace(variableType)) return variableType;
+        var t = variableType.Trim().ToLowerInvariant();
+        return t switch
+        {
+            "string" => "String",
+            "number" => "Number",
+            "int" => "Number",
+            "integer" => "Number",
+            "float" => "Number",
+            "double" => "Number",
+            "bool" => "Boolean",
+            "boolean" => "Boolean",
+            "json" => "JSON",
+            _ => variableType // leave as-is for custom types
+        };
     }
 
     private string _lastUserId = string.Empty;
@@ -627,5 +656,6 @@ public class VariableFullResult
     public string EvaluationReason { get; set; } = string.Empty;
     public bool IsError { get; set; }
     public string ErrorMessage { get; set; } = string.Empty;
+    public string FullJson { get; set; } = string.Empty; // optional full JSON structure
     public override string ToString() => IsError ? $"ERROR({ErrorMessage})" : RawValueJson;
 }

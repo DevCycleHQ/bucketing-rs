@@ -17,6 +17,12 @@ class Program
     private static bool DebugMode = false;  // disable detailed DevCycleClient debug by default for cleaner timing
     private static bool NativeAvailable = true;
 
+    // Added defaults for variable benchmarking
+    private static string VariableKey = "test"; // override with --variable-key=KEY or env DVC_VARIABLE_KEY
+    private static string VariableType = "String"; // override with --variable-type=TYPE or env DVC_VARIABLE_TYPE
+    private static bool ListVariables = false; // new flag
+    private static Dictionary<string, string> VariableCatalog = new(); // key -> type
+
     static void Main(string[] args)
     {
         ParseArgs(args);
@@ -41,6 +47,20 @@ class Program
         try
         {
             string config = Measure("Load configuration", CreateSampleConfig);
+            // Extract variable catalog early (best-effort) so user can choose valid key
+            TryExtractVariableCatalog(config);
+            if (ListVariables && VariableCatalog.Count > 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Available Variables (from config)");
+                Console.WriteLine(new string('=', 36));
+                foreach (var kvp in VariableCatalog)
+                {
+                    Console.WriteLine($"{kvp.Key} : {kvp.Value}");
+                }
+                Console.WriteLine(new string('-', 36));
+                Console.WriteLine("Use --variable-key=<key> --variable-type=<type> to benchmark a specific variable.");
+            }
 
             var customData = new Dictionary<string, object>
             {
@@ -110,6 +130,22 @@ class Program
                 {
                     var timings = BenchmarkBucketedConfig(client, user!, BenchmarkRuns);
                     PrintBenchmarkSummary(timings);
+                });
+
+                // Variable evaluation warm-up & benchmark
+                try
+                {
+                    client.GetVariableForUser(user!, VariableKey, VariableType); // warm-up (ignore result)
+                }
+                catch (Exception ex)
+                {
+                    Warn($"Variable warm-up failed: {ex.GetType().Name}: {ex.Message}");
+                }
+
+                Measure("Benchmark variable evaluation", () =>
+                {
+                    var (varTimes, errorCount) = BenchmarkVariableForUser(client, user!, VariableKey, VariableType, BenchmarkRuns);
+                    PrintVariableBenchmarkSummary(varTimes, errorCount, VariableKey, VariableType);
                 });
             }
 
@@ -197,6 +233,99 @@ class Program
             throw new FileNotFoundException("Test configuration file not found in expected locations.");
 
         return configJson;
+    }
+
+    // Attempt to parse production config JSON to build variable catalog
+    private static void TryExtractVariableCatalog(string configJson)
+    {
+        VariableCatalog.Clear();
+        if (string.IsNullOrWhiteSpace(configJson)) return;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(configJson);
+            var root = doc.RootElement;
+            // Heuristics: look for top-level "features" or "variables" arrays/objects
+            if (root.TryGetProperty("variables", out var varsElem))
+            {
+                // Could be object of key -> { type, ... }
+                if (varsElem.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    foreach (var prop in varsElem.EnumerateObject())
+                    {
+                        string type = ExtractType(prop.Value);
+                        VariableCatalog[prop.Name] = type;
+                    }
+                }
+                else if (varsElem.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var item in varsElem.EnumerateArray())
+                    {
+                        if (item.ValueKind == System.Text.Json.JsonValueKind.Object && item.TryGetProperty("key", out var keyProp))
+                        {
+                            string key = keyProp.GetString() ?? string.Empty;
+                            if (string.IsNullOrEmpty(key)) continue;
+                            string type = ExtractType(item);
+                            VariableCatalog[key] = type;
+                        }
+                    }
+                }
+            }
+            // Some configs might nest under features -> variables
+            if (VariableCatalog.Count == 0 && root.TryGetProperty("features", out var featuresElem))
+            {
+                if (featuresElem.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    foreach (var feat in featuresElem.EnumerateObject())
+                    {
+                        var fVal = feat.Value;
+                        if (fVal.ValueKind == System.Text.Json.JsonValueKind.Object && fVal.TryGetProperty("variables", out var fv))
+                        {
+                            if (fv.ValueKind == System.Text.Json.JsonValueKind.Object)
+                            {
+                                foreach (var vProp in fv.EnumerateObject())
+                                {
+                                    string type = ExtractType(vProp.Value);
+                                    VariableCatalog[vProp.Name] = type;
+                                }
+                            }
+                            else if (fv.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            {
+                                foreach (var item in fv.EnumerateArray())
+                                {
+                                    if (item.ValueKind == System.Text.Json.JsonValueKind.Object && item.TryGetProperty("key", out var keyProp))
+                                    {
+                                        string key = keyProp.GetString() ?? string.Empty;
+                                        if (string.IsNullOrEmpty(key)) continue;
+                                        string type = ExtractType(item);
+                                        VariableCatalog[key] = type;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore parse errors silently for catalog
+        }
+    }
+
+    private static string ExtractType(System.Text.Json.JsonElement elem)
+    {
+        if (elem.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            if (elem.TryGetProperty("type", out var t))
+            {
+                return t.GetString() ?? "unknown";
+            }
+            if (elem.TryGetProperty("valueType", out var vt))
+            {
+                return vt.GetString() ?? "unknown";
+            }
+        }
+        return "unknown";
     }
 
     // High-accuracy measurement (excludes logging overhead inside measured delegate)
@@ -300,6 +429,35 @@ class Program
         return times;
     }
 
+    // New variable benchmark logic (returns list of per-run ms + error count)
+    private static (List<double> Times, int ErrorCount) BenchmarkVariableForUser(DevCycleClient client, DevCycleUser user, string variableKey, string variableType, int runs)
+    {
+        var times = new List<double>(runs);
+        int errorCount = 0;
+        for (int i = 0; i < runs; i++)
+        {
+            long start = Stopwatch.GetTimestamp();
+            try
+            {
+                var result = client.GetVariableForUser(user, variableKey, variableType);
+                if (result.IsError) errorCount++;
+            }
+            catch (Exception ex)
+            {
+                // Count as error, continue
+                errorCount++;
+                if (DebugMode)
+                {
+                    Warn($"Variable evaluation exception (run {i + 1}): {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            long end = Stopwatch.GetTimestamp();
+            double ms = TicksToMs(end - start);
+            times.Add(ms);
+        }
+        return (times, errorCount);
+    }
+
     private static void PrintBenchmarkSummary(List<double> times)
     {
         if (times.Count == 0)
@@ -350,6 +508,56 @@ class Program
         Console.WriteLine("Note: First warm-up run excluded from statistics; debug logging disabled unless --debug or DVC_DEBUG=1.");
     }
 
+    // New variable benchmark summary
+    private static void PrintVariableBenchmarkSummary(List<double> times, int errorCount, string variableKey, string variableType)
+    {
+        if (times.Count == 0)
+        {
+            Warn("No variable benchmark timings collected.");
+            return;
+        }
+        double min = double.MaxValue, max = double.MinValue, sum = 0.0;
+        foreach (var t in times)
+        {
+            if (t < min) min = t;
+            if (t > max) max = t;
+            sum += t;
+        }
+        double avg = sum / times.Count;
+        double varianceSum = 0.0;
+        foreach (var t in times) varianceSum += (t - avg) * (t - avg);
+        double stdDev = Math.Sqrt(varianceSum / times.Count);
+        var sorted = new List<double>(times);
+        sorted.Sort();
+        double P(double p)
+        {
+            if (sorted.Count == 1) return sorted[0];
+            double idx = (p / 100.0) * (sorted.Count - 1);
+            int lo = (int)Math.Floor(idx);
+            int hi = (int)Math.Ceiling(idx);
+            if (lo == hi) return sorted[lo];
+            double frac = idx - lo;
+            return sorted[lo] + (sorted[hi] - sorted[lo]) * frac;
+        }
+        Console.WriteLine();
+        Console.WriteLine("Variable Evaluation Benchmark Summary");
+        Console.WriteLine(new string('=', 46));
+        Console.WriteLine($"Variable Key     : {variableKey}");
+        Console.WriteLine($"Variable Type    : {variableType}");
+        Console.WriteLine($"Runs             : {times.Count}");
+        Console.WriteLine($"Errors           : {errorCount}");
+        Console.WriteLine($"Min (ms)         : {min:F4}");
+        Console.WriteLine($"Max (ms)         : {max:F4}");
+        Console.WriteLine($"Avg (ms)         : {avg:F4}");
+        Console.WriteLine($"Std Dev (ms)     : {stdDev:F4}");
+        Console.WriteLine($"P50 (ms)         : {P(50):F4}");
+        Console.WriteLine($"P90 (ms)         : {P(90):F4}");
+        Console.WriteLine($"P95 (ms)         : {P(95):F4}");
+        Console.WriteLine($"P99 (ms)         : {P(99):F4}");
+        Console.WriteLine(new string('-', 46));
+        Console.WriteLine("Note: Debug logging disabled unless --debug or DVC_DEBUG=1.");
+    }
+
     // Lightweight logging helpers
     private static void Info(string message) => Console.WriteLine(message);
     private static void Warn(string message) => Console.WriteLine($"[WARN] {message}");
@@ -375,10 +583,28 @@ class Program
             {
                 if (int.TryParse(args[i + 1], out var r) && r > 0) BenchmarkRuns = r;
             }
+            else if (a.StartsWith("--variable-key="))
+            {
+                var val = a.Substring("--variable-key=".Length);
+                if (!string.IsNullOrWhiteSpace(val)) VariableKey = val;
+            }
+            else if (a.StartsWith("--variable-type="))
+            {
+                var val = a.Substring("--variable-type=".Length);
+                if (!string.IsNullOrWhiteSpace(val)) VariableType = val;
+            }
+            else if (a == "--list-variables") ListVariables = true;
         }
         var envRuns = Environment.GetEnvironmentVariable("DVC_RUNS");
         if (!string.IsNullOrEmpty(envRuns) && int.TryParse(envRuns, out var er) && er > 0) BenchmarkRuns = er;
         if (Environment.GetEnvironmentVariable("DVC_DEBUG") == "1") DebugMode = true;
         if (Environment.GetEnvironmentVariable("DVC_PROFILE_DETAILED") == "1") DetailedProfile = true;
+
+        var envVarKey = Environment.GetEnvironmentVariable("DVC_VARIABLE_KEY");
+        if (!string.IsNullOrWhiteSpace(envVarKey)) VariableKey = envVarKey;
+        var envVarType = Environment.GetEnvironmentVariable("DVC_VARIABLE_TYPE");
+        if (!string.IsNullOrWhiteSpace(envVarType)) VariableType = envVarType;
+
+        if (Environment.GetEnvironmentVariable("DVC_LIST_VARIABLES") == "1") ListVariables = true;
     }
 }
