@@ -208,7 +208,10 @@ pub async fn variable_for_user(
             )) => {
                 // Check if variable type matches expected type (matching AS behavior)
                 if !variable_type.is_empty() && var_type != variable_type {
-                    return Ok(JsValue::NULL);
+                    return Err(JsValue::from_str(&format!(
+                        "Type mismatch: expected '{}', got '{}'",
+                        variable_type, var_type
+                    )));
                 }
 
                 // Construct SDKVariable matching AssemblyScript structure
