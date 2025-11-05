@@ -309,16 +309,12 @@ pub async fn generate_bucketed_config(
                 .map_err(|e| JsValue::from_str(&format!("Invalid client custom data: {:?}", e)))?
         };
 
-    unsafe {
-        let config = crate::generate_bucketed_config(&sdk_key, populated_user, client_custom_data)
-            .await
-            .map_err(|e| {
-                JsValue::from_str(&format!("Error generating bucketed config: {:?}", e))
-            })?;
+    let config = crate::generate_bucketed_config(&sdk_key, populated_user, client_custom_data)
+        .await
+        .map_err(|e| JsValue::from_str(&format!("Error generating bucketed config: {:?}", e)))?;
 
-        serde_wasm_bindgen::to_value(&config)
-            .map_err(|e| JsValue::from_str(&format!("Error serializing config: {:?}", e)))
-    }
+    serde_wasm_bindgen::to_value(&config)
+        .map_err(|e| JsValue::from_str(&format!("Error serializing config: {:?}", e)))
 }
 
 /// Get library version
