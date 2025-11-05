@@ -45,7 +45,7 @@ use crate::config::ConfigBody;
 
 pub async fn init_sdk_key(
     sdk_key: &str,
-    config_body: ConfigBody<'static>,
+    config_body: ConfigBody,
     event_queue_options: EventQueueOptions,
     client_custom_data: HashMap<String, serde_json::Value>,
     platform_data: PlatformData,
@@ -58,10 +58,7 @@ pub async fn init_sdk_key(
     Ok(())
 }
 
-pub async fn set_config(
-    sdk_key: &str,
-    config_body: ConfigBody<'static>,
-) -> Result<(), DevCycleError> {
+pub async fn set_config(sdk_key: &str, config_body: ConfigBody) -> Result<(), DevCycleError> {
     Ok(configmanager::set_config(sdk_key, config_body))
 }
 

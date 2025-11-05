@@ -48,9 +48,9 @@ pub struct Audience {
 pub(crate) struct Rollout {
     #[serde(rename = "type")]
     pub(crate) _type: String,
-    #[serde(default)]
+    #[serde(default, rename = "startPercentage", alias = "startPercentage")]
     pub(crate) start_percentage: f64,
-    #[serde(default)]
+    #[serde(default, rename = "startDate", alias = "startDate")]
     pub(crate) start_date: DateTime<Utc>,
     #[serde(default)]
     pub(crate) stages: Vec<RolloutStage>,
@@ -72,6 +72,7 @@ pub(crate) struct TargetDistribution {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct TargetAndHashes {
     pub(crate) target: Target,
     pub(crate) bounded_hash: murmurhash::BoundedHash,

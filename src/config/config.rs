@@ -110,9 +110,9 @@ pub struct FullConfig {
     pub sse: Option<SSE>,
 }
 
-pub struct ConfigBody<'a> {
+pub struct ConfigBody {
     pub project: Project,
-    pub audiences: &'a HashMap<String, NoIdAudience>,
+    pub audiences: HashMap<String, NoIdAudience>,
     pub environment: Environment,
     pub features: Vec<ConfigFeature>,
     pub variables: Vec<Variable>,
@@ -125,10 +125,9 @@ pub struct ConfigBody<'a> {
     pub last_modified: DateTime<chrono::Utc>,
 }
 
-impl<'a> ConfigBody<'a> {
-    /// Create a ConfigBody from a FullConfig
-    /// This leaks memory for the audiences map to achieve 'static lifetime
-    pub fn from_full_config(full_config: FullConfig) -> Result<ConfigBody<'static>, String> {
+impl ConfigBody {
+    /// Create a ConfigBody from a FullConfig without leaking memory.
+    pub fn from_full_config(full_config: FullConfig) -> Result<ConfigBody, String> {
         // Parse audiences from the full config
         let mut audiences_map: HashMap<String, NoIdAudience> = HashMap::new();
         for (key, value) in full_config.audiences.iter() {
@@ -141,8 +140,6 @@ impl<'a> ConfigBody<'a> {
                 }
             }
         }
-        let static_audiences: &'static HashMap<String, NoIdAudience> =
-            Box::leak(Box::new(audiences_map));
 
         let variable_id_map = HashMap::new();
         let variable_key_map = HashMap::new();
@@ -155,7 +152,7 @@ impl<'a> ConfigBody<'a> {
 
         let mut config = ConfigBody {
             project: full_config.project,
-            audiences: static_audiences,
+            audiences: audiences_map,
             environment: full_config.environment,
             features: full_config.features,
             variables: full_config.variables,

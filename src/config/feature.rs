@@ -12,8 +12,7 @@ pub struct VariationVariable {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ReadOnlyVariable {
-    #[serde(rename = "_id")]
-    pub id: String,
+    pub _id: String,
     pub key: String,
     #[serde(rename = "type")]
     pub _type: String,
@@ -31,10 +30,8 @@ pub(crate) struct Variation {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FeatureVariation {
-    #[serde(rename = "_feature")]
-    pub feature: String,
-    #[serde(rename = "_variation")]
-    pub variation: String,
+    pub _feature: String,
+    pub _variation: String,
 }
 
 impl Variation {
@@ -75,12 +72,14 @@ pub struct FeatureConfiguration {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FeaturePrerequisites {
-    _feature: String,   // `json:"_feature"`
-    comparator: String, // `json:"comparator"`
+    _feature: String,
+    comparator: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Feature {
     pub _id: String,
     pub key: String,
