@@ -1562,7 +1562,13 @@ pub unsafe extern "C" fn devcycle_queue_event(
         // Platform data already stored
         let platform_data = match crate::config::platform_data::get_platform_data(&sdk_key_str) {
             Ok(pd) => pd,
-            Err(e) => return Err(DevCycleFFIErrorCode::OperationFailed),
+            Err(e) => {
+                set_error(
+                    format!("Failed to get platform data for SDK key {}: {}", sdk_key_str, e),
+                    DevCycleFFIErrorCode::OperationFailed,
+                );
+                return Err(DevCycleFFIErrorCode::OperationFailed);
+            }
         };
         let populated_user = crate::user::PopulatedUser::new(
             user.clone(),
