@@ -29,7 +29,15 @@ pub enum DevCycleFFIErrorCode {
     ConfigBodyConversionFailed = -5,
     RuntimeUnavailable = -6,
     OperationFailed = -7,
+    /// Reserved for future use (was -8)
+    Reserved8 = -8,
+    /// Reserved for future use (was -9)
+    Reserved9 = -9,
     ProtobufDecodeFailed = -10,
+    /// Reserved for future use (was -11)
+    Reserved11 = -11,
+    /// Reserved for future use (was -12)
+    Reserved12 = -12,
     EventQueueInitFailed = -13,
     InitSdkKeyFailed = -14,
 }
