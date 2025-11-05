@@ -76,29 +76,34 @@ async fn main() {
 #include "devcycle_bucketing.h"
 
 int main() {
-    // Initialize event queue
-    devcycle_init_event_queue("your-sdk-key", NULL);
-    
-    // Create user from JSON
-    const char* user_json = "{\"user_id\":\"test-user\"}";
-    CUser* user = devcycle_user_from_json(user_json);
-    
-    // Generate config
-    CBucketedUserConfig* config = devcycle_generate_bucketed_config_from_user(
-        "your-sdk-key",
-        user,
-        NULL
+    // Initialize full SDK state (config + queues + platform & custom data)
+    const char* sdk_key = "your-sdk-key";
+    const char* config_json = "{ /* full config JSON here */ }"; // See test resources for example structure
+    int init_rc = devcycle_init_sdk_key(sdk_key, config_json, NULL, NULL, NULL);
+    if (init_rc != 0) {
+        char* err = devcycle_get_last_error();
+        if (err) { fprintf(stderr, "Init error: %s\n", err); devcycle_free_string(err); }
+        return 1;
+    }
+
+    // Minimal user JSON (only userId needed, other fields defaulted internally)
+    const char* user_json = "{\"userId\":\"test-user\"}";
+
+    // Queue a custom event for the user (populated & bucketed internally)
+    int qrc = devcycle_queue_event(
+        sdk_key,
+        user_json,
+        "CustomEvent",   // event type
+        "purchase",      // customType
+        "sku-123",       // target
+        19.99,            // value
+        "{\"amount\":19.99}"
     );
-    
-    // Get JSON output
-    char* json = devcycle_bucketed_config_to_json(config);
-    printf("%s\n", json);
-    
-    // Clean up
-    devcycle_free_string(json);
-    devcycle_free_bucketed_config(config);
-    devcycle_free_user(user);
-    
+    if (qrc != 0) {
+        char* err = devcycle_get_last_error();
+        if (err) { fprintf(stderr, "Queue event error: %s\n", err); devcycle_free_string(err); }
+    }
+
     return 0;
 }
 ```
@@ -224,4 +229,3 @@ The release builds are optimized for size, especially for WASM:
 - **Rust**: All platforms supported by Rust
 - **C Library**: Linux, macOS, Windows (x86_64, ARM64)
 - **WebAssembly**: Modern browsers, Node.js 14+
-
