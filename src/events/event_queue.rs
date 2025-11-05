@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
 
 #[derive(Clone)]
 pub struct EventQueueOptions {
@@ -55,8 +55,8 @@ pub struct EventQueue {
     pub(crate) user_event_queue_raw_tx: mpsc::Sender<UserEventData>,
     pub(crate) user_event_queue_raw_rx: mpsc::Receiver<UserEventData>,
     pub(crate) agg_event_queue: AggregateEventQueue,
-    pub(crate) user_event_queue: UserEventQueue,
-    pub(crate) user_event_queue_count: i32,
+    pub(crate) user_event_queue: Mutex<UserEventQueue>, // changed to Mutex for interior mutability
+    pub(crate) user_event_queue_count: AtomicI64,
     pub(crate) queue_access_mutex: tokio::sync::Mutex<()>,
     pub(crate) events_flushed: AtomicI64,
     pub(crate) events_dropped: AtomicI64,
@@ -81,8 +81,8 @@ impl EventQueue {
             agg_event_queue_raw_rx,
             user_event_queue_raw_rx,
             agg_event_queue: HashMap::new(),
-            user_event_queue: HashMap::new(),
-            user_event_queue_count: 0,
+            user_event_queue: Mutex::new(HashMap::new()), // wrap in Mutex
+            user_event_queue_count: AtomicI64::new(0),
             queue_access_mutex: tokio::sync::Mutex::new(()),
             events_flushed: AtomicI64::new(0),
             events_dropped: AtomicI64::new(0),
@@ -309,18 +309,21 @@ impl EventQueue {
 
         let _guard = self.queue_access_mutex.lock().await;
 
-        // Add event to user event queue
+        // Lock the user_event_queue mutex for insertion
         let user_id = event.user.user_id.clone();
-        self.user_event_queue
-            .entry(user_id)
-            .or_insert_with(|| UserEventsBatchRecord {
-                user: populated_user,
-                events: Vec::new(),
-            })
-            .events
-            .push(event.event);
+        {
+            let mut user_queue = self.user_event_queue.lock().await;
+            user_queue
+                .entry(user_id)
+                .or_insert_with(|| UserEventsBatchRecord {
+                    user: populated_user,
+                    events: Vec::new(),
+                })
+                .events
+                .push(event.event);
+        }
 
-        self.user_event_queue_count += 1;
+        self.user_event_queue_count.fetch_add(1, Ordering::Relaxed);
 
         return Ok(true);
     }
@@ -338,7 +341,7 @@ impl EventQueue {
         let eval_metadata = agg_event_queue_raw_message.eval_metadata;
 
         if event_type == EventType::AggregateVariableEvaluated {
-            // Get or create the nested structure and update counts directly
+            // Get or clone the nested structure and update counts directly
             let eval_reasons = self
                 .agg_event_queue
                 .entry(event_type)

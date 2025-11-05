@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
-use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 // Thread-local storage for the last error message
 thread_local! {
@@ -96,6 +96,7 @@ pub unsafe extern "C" fn devcycle_error_code_to_string(code: DevCycleFFIErrorCod
         DevCycleFFIErrorCode::ProtobufDecodeFailed => "ProtobufDecodeFailed",
         DevCycleFFIErrorCode::EventQueueInitFailed => "EventQueueInitFailed",
         DevCycleFFIErrorCode::InitSdkKeyFailed => "InitSdkKeyFailed",
+        _ => "UnknownErrorCode",
     };
     match CString::new(s) {
         Ok(c_str) => c_str.into_raw(),
@@ -1564,7 +1565,10 @@ pub unsafe extern "C" fn devcycle_queue_event(
             Ok(pd) => pd,
             Err(e) => {
                 set_error(
-                    format!("Failed to get platform data for SDK key {}: {}", sdk_key_str, e),
+                    format!(
+                        "Failed to get platform data for SDK key {}: {}",
+                        sdk_key_str, e
+                    ),
                     DevCycleFFIErrorCode::OperationFailed,
                 );
                 return Err(DevCycleFFIErrorCode::OperationFailed);
@@ -1588,20 +1592,22 @@ pub unsafe extern "C" fn devcycle_queue_event(
                 if event.event_type == crate::events::event::EventType::CustomEvent {
                     event.user_id = user.user_id.clone();
                 }
-                // Insert into user_event_queue using interior mutability (Mutex)
-                let mut queue_guard = event_queue.user_event_queue.lock().await;
                 let user_id_key = user.user_id.clone();
-                queue_guard
-                    .entry(user_id_key)
-                    .or_insert_with(|| crate::events::event::UserEventsBatchRecord {
-                        user: populated_user,
-                        events: Vec::new(),
-                    })
-                    .events
-                    .push(event);
+                {
+                    let mut user_queue = event_queue.user_event_queue.lock().await;
+                    user_queue
+                        .entry(user_id_key)
+                        .or_insert_with(|| crate::events::event::UserEventsBatchRecord {
+                            user: populated_user,
+                            events: Vec::new(),
+                        })
+                        .events
+                        .push(event);
+                }
                 // Increment the event queue count
-                let mut count_guard = event_queue.user_event_queue_count.lock().await;
-                *count_guard += 1;
+                event_queue
+                    .user_event_queue_count
+                    .fetch_add(1, Ordering::Relaxed);
                 Ok(())
             }
             Err(_) => Err(DevCycleFFIErrorCode::OperationFailed),
@@ -1692,7 +1698,7 @@ mod ffi_tests {
         let eq = crate::events::event_queue_manager::get_event_queue("test-sdk-key").unwrap();
         // Access underlying struct for count (Arc deref)
         assert!(
-            eq.user_event_queue_count > 0,
+            eq.user_event_queue_count.load(Ordering::Relaxed) > 0,
             "Expected user_event_queue_count > 0 after queueing event"
         );
     }

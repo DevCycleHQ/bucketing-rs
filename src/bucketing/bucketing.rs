@@ -147,7 +147,7 @@ pub async fn variable_for_user(
     match result {
         Ok((
             variable_id,
-            var_key,
+            variable_key,
             variable_type,
             variable_value,
             feature_id,
@@ -161,7 +161,7 @@ pub async fn variable_for_user(
                 let err = errors::invalid_variable_type();
 
                 if let Err(event_err) = event_queue
-                    .queue_variable_defaulted_event(variable_key, "", "")
+                    .queue_variable_defaulted_event(variable_key.clone().as_str(), "", "")
                     .await
                 {
                     eprintln!("Failed to queue variable defaulted event: {}", event_err);
@@ -173,7 +173,7 @@ pub async fn variable_for_user(
             // Queue variable evaluated event
             if let Err(event_err) = event_queue
                 .queue_variable_evaluated_event(
-                    variable_key,
+                    variable_key.clone().as_str(),
                     &feature_id,
                     &variation_id,
                     eval_reason.clone(),
@@ -185,12 +185,13 @@ pub async fn variable_for_user(
 
             Ok(VariableForUserResult {
                 variable_id,
-                var_key,
+                variable_key,
                 variable_type,
                 variation_id,
                 variable_value,
                 feature_id,
                 eval_reason: Ok(eval_reason),
+                default_reason: String::new(),
             })
         }
         Err((err, eval_reason)) => {
@@ -207,10 +208,11 @@ pub async fn variable_for_user(
             Ok(VariableForUserResult {
                 variable_id: String::new(),
                 variable_key: String::new(),
+                variation_id: String::new(),
                 variable_type: String::new(),
                 variable_value: serde_json::Value::Null,
                 feature_id: String::new(),
-                eval_reason,
+                eval_reason: Ok(eval_reason),
                 default_reason: default_reason.to_string(),
             })
         }
