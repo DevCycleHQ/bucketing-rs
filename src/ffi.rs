@@ -1582,26 +1582,20 @@ pub unsafe extern "C" fn devcycle_queue_event(
                 if event.event_type == crate::events::event::EventType::CustomEvent {
                     event.user_id = user.user_id.clone();
                 }
-                // Insert into user_event_queue guarded by mutex (unsafe mutable access)
-                // Safety: queue_access_mutex ensures exclusive mutation; EventQueue shared only via &Arc<EventQueue>
-                let _guard = event_queue.queue_access_mutex.lock().await;
-                let queue_ptr =
-                    Arc::as_ptr(&event_queue) as *mut crate::events::event_queue::EventQueue;
-                // SAFETY: We hold the mutex, and no other &mut exists.
-                unsafe {
-                    let queue_mut = &mut *queue_ptr;
-                    let user_id_key = user.user_id.clone();
-                    queue_mut
-                        .user_event_queue
-                        .entry(user_id_key)
-                        .or_insert_with(|| crate::events::event::UserEventsBatchRecord {
-                            user: populated_user,
-                            events: Vec::new(),
-                        })
-                        .events
-                        .push(event);
-                    queue_mut.user_event_queue_count += 1;
-                }
+                // Insert into user_event_queue using interior mutability (Mutex)
+                let mut queue_guard = event_queue.user_event_queue.lock().await;
+                let user_id_key = user.user_id.clone();
+                queue_guard
+                    .entry(user_id_key)
+                    .or_insert_with(|| crate::events::event::UserEventsBatchRecord {
+                        user: populated_user,
+                        events: Vec::new(),
+                    })
+                    .events
+                    .push(event);
+                // Increment the event queue count
+                let mut count_guard = event_queue.user_event_queue_count.lock().await;
+                *count_guard += 1;
                 Ok(())
             }
             Err(_) => Err(DevCycleFFIErrorCode::OperationFailed),
