@@ -1,13 +1,38 @@
 // WebAssembly bindings using wasm-bindgen
 #![cfg(feature = "wasm")]
 
-use crate::errors::DevCycleError;
+use crate::bucketing::VariableForUserResult;
+use crate::config::platform_data::PlatformData;
 use crate::events::EventQueueOptions;
-use crate::user::{BucketedUserConfig, PopulatedUser, User};
+use crate::user::{PopulatedUser, User};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
+
+/// WASM-compatible EvalReason matching AssemblyScript SDKVariable
+#[derive(Clone, Serialize, Deserialize)]
+pub struct WasmEvalReason {
+    pub reason: String,
+    pub details: String,
+    #[serde(rename = "target_id")]
+    pub target_id: String,
+}
+
+/// WASM-compatible SDKVariable matching AssemblyScript SDKVariable
+#[derive(Clone, Serialize, Deserialize)]
+pub struct WasmSDKVariable {
+    #[serde(rename = "_id")]
+    pub id: String,
+    #[serde(rename = "type")]
+    pub variable_type: String,
+    pub key: String,
+    pub value: serde_json::Value,
+    #[serde(rename = "_feature", skip_serializing_if = "Option::is_none")]
+    pub feature: Option<String>,
+    #[serde(rename = "eval")]
+    pub eval_reason: WasmEvalReason,
+}
 
 #[wasm_bindgen]
 extern "C" {
@@ -98,6 +123,136 @@ impl From<WasmEventQueueOptions> for EventQueueOptions {
     }
 }
 
+/// Set platform data for SDK key from JSON string
+#[wasm_bindgen]
+pub fn set_platform_data(sdk_key: String, platform_data_json: String) -> Result<(), JsValue> {
+    let platform_data: PlatformData = serde_json::from_str(&platform_data_json)
+        .map_err(|e| JsValue::from_str(&format!("Invalid platform data JSON: {:?}", e)))?;
+
+    crate::config::platform_data::set_platform_data(sdk_key, platform_data);
+    Ok(())
+}
+
+/// Set config data for SDK key from JSON string
+#[wasm_bindgen]
+pub fn set_config_data(sdk_key: String, config_json: String) -> Result<(), JsValue> {
+    let full_config: crate::config::FullConfig = serde_json::from_str(&config_json)
+        .map_err(|e| JsValue::from_str(&format!("Invalid config JSON: {:?}", e)))?;
+
+    let config_body = match crate::config::ConfigBody::from_full_config(full_config) {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            return Err(JsValue::from_str(&format!(
+                "Error creating config body: {}",
+                e
+            )))
+        }
+    };
+    crate::configmanager::set_config(&sdk_key, config_body);
+    Ok(())
+}
+
+/// Check if config data exists for SDK key
+#[wasm_bindgen]
+pub fn has_config_data(sdk_key: String) -> bool {
+    crate::configmanager::has_config(&sdk_key)
+}
+
+/// Set client custom data for SDK key from JSON string
+#[wasm_bindgen]
+pub fn set_client_custom_data(
+    sdk_key: String,
+    client_custom_data_json: String,
+) -> Result<(), JsValue> {
+    let client_custom_data: HashMap<String, serde_json::Value> =
+        serde_json::from_str(&client_custom_data_json)
+            .map_err(|e| JsValue::from_str(&format!("Invalid client custom data JSON: {:?}", e)))?;
+
+    crate::config::client_custom_data::set_client_custom_data(sdk_key, client_custom_data);
+    Ok(())
+}
+
+/// Get variable value for user (JSON input/output), returns stringified SDKVariable or null
+#[wasm_bindgen]
+pub async fn variable_for_user(
+    sdk_key: String,
+    user_json_str: String,
+    variable_key: String,
+    variable_type: String,
+) -> Result<JsValue, JsValue> {
+    // Parse user JSON
+    let user: User = serde_json::from_str(&user_json_str)
+        .map_err(|e| JsValue::from_str(&format!("Invalid user JSON: {:?}", e)))?;
+
+    // Convert to PopulatedUser
+    let populated_user = user.get_populated_user(&sdk_key);
+
+    // Get client_custom_data from global storage (or use empty if not set)
+    let client_custom_data = crate::config::client_custom_data::CLIENT_CUSTOM_DATA
+        .read()
+        .unwrap()
+        .get(&sdk_key)
+        .cloned()
+        .unwrap_or_else(HashMap::new);
+
+    unsafe {
+        let result = crate::bucketing::variable_for_user(
+            &sdk_key,
+            populated_user,
+            &variable_key,
+            &variable_type,
+            client_custom_data,
+        )
+        .await;
+
+        match result {
+            Ok(VariableForUserResult {
+                variable_id,
+                variable_key: var_key,
+                variable_type: var_type,
+                variable_value: value,
+                feature_id,
+                variation_id,
+                eval_reason,
+                default_reason: _default_reason,
+            }) => {
+                // Check if variable type matches expected type (matching AS behavior)
+                if !variable_type.is_empty() && var_type != variable_type {
+                    return Err(JsValue::from_str(&format!(
+                        "Type mismatch: expected '{}', got '{}'",
+                        variable_type, var_type
+                    )));
+                }
+
+                // Construct SDKVariable matching AssemblyScript structure
+                let sdk_variable = WasmSDKVariable {
+                    id: variable_id,
+                    variable_type: var_type,
+                    key: var_key,
+                    value,
+                    feature: Some(feature_id),
+                    eval_reason: WasmEvalReason {
+                        reason: format!("{:?}", eval_reason),
+                        details: String::new(),
+                        target_id: String::new(),
+                    },
+                };
+
+                serde_wasm_bindgen::to_value(&sdk_variable).map_err(|e| {
+                    JsValue::from_str(&format!("Error serializing SDKVariable: {:?}", e))
+                })
+            }
+            Err(e) => {
+                // Throw error
+                Err(JsValue::from_str(&format!(
+                    "Error getting variable: {:?}",
+                    e
+                )))
+            }
+        }
+    }
+}
+
 /// Initialize event queue
 #[wasm_bindgen]
 pub async fn init_event_queue(
@@ -120,21 +275,12 @@ pub async fn init_event_queue(
 pub async fn generate_bucketed_config_from_user(
     sdk_key: String,
     user_json: JsValue,
-    client_custom_data_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     let user: User = serde_wasm_bindgen::from_value(user_json)
         .map_err(|e| JsValue::from_str(&format!("Invalid user JSON: {:?}", e)))?;
 
-    let client_custom_data: HashMap<String, serde_json::Value> =
-        if client_custom_data_json.is_undefined() || client_custom_data_json.is_null() {
-            HashMap::new()
-        } else {
-            serde_wasm_bindgen::from_value(client_custom_data_json)
-                .map_err(|e| JsValue::from_str(&format!("Invalid client custom data: {:?}", e)))?
-        };
-
     unsafe {
-        let config = crate::generate_bucketed_config_from_user(&sdk_key, user, client_custom_data)
+        let config = crate::generate_bucketed_config_from_user(&sdk_key, user)
             .await
             .map_err(|e| {
                 JsValue::from_str(&format!("Error generating bucketed config: {:?}", e))
@@ -163,16 +309,12 @@ pub async fn generate_bucketed_config(
                 .map_err(|e| JsValue::from_str(&format!("Invalid client custom data: {:?}", e)))?
         };
 
-    unsafe {
-        let config = crate::generate_bucketed_config(&sdk_key, populated_user, client_custom_data)
-            .await
-            .map_err(|e| {
-                JsValue::from_str(&format!("Error generating bucketed config: {:?}", e))
-            })?;
+    let config = crate::generate_bucketed_config(&sdk_key, populated_user, client_custom_data)
+        .await
+        .map_err(|e| JsValue::from_str(&format!("Error generating bucketed config: {:?}", e)))?;
 
-        serde_wasm_bindgen::to_value(&config)
-            .map_err(|e| JsValue::from_str(&format!("Error serializing config: {:?}", e)))
-    }
+    serde_wasm_bindgen::to_value(&config)
+        .map_err(|e| JsValue::from_str(&format!("Error serializing config: {:?}", e)))
 }
 
 /// Get library version

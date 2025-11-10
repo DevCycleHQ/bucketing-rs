@@ -38,7 +38,15 @@ async fn generate_bucketed_variable_for_user(
     variable_key: &str,
     client_custom_data: HashMap<String, serde_json::Value>,
 ) -> Result<
-    (String, serde_json::Value, String, String, EvaluationReason),
+    (
+        String,
+        String,
+        String,
+        serde_json::Value,
+        String,
+        String,
+        EvaluationReason,
+    ),
     (DevCycleError, EvaluationReason),
 > {
     // Get config (already returns Arc<ConfigBody> from the CONFIGS map)
@@ -99,6 +107,8 @@ async fn generate_bucketed_variable_for_user(
     };
 
     Ok((
+        variable._id.clone(),
+        variable.key.clone(),
         variable._type.clone(),
         variation_variable.value.clone(),
         feat_for_variable._id.clone(),
@@ -108,11 +118,14 @@ async fn generate_bucketed_variable_for_user(
 }
 
 pub struct VariableForUserResult {
+    pub variable_id: String,
+    pub variable_key: String,
     pub variable_type: String,
     pub variable_value: serde_json::Value,
     pub feature_id: String,
     pub variation_id: String,
     pub eval_reason: Result<EvaluationReason, DevCycleError>,
+    pub default_reason: String,
 }
 
 pub async fn variable_for_user(
@@ -132,7 +145,15 @@ pub async fn variable_for_user(
         }
     };
     match result {
-        Ok((variable_type, variable_value, feature_id, variation_id, eval_reason)) => {
+        Ok((
+            variable_id,
+            variable_key,
+            variable_type,
+            variable_value,
+            feature_id,
+            variation_id,
+            eval_reason,
+        )) => {
             // Validate variable type
             if !is_variable_type_valid(&variable_type, expected_variable_type)
                 && !expected_variable_type.is_empty()
@@ -140,7 +161,7 @@ pub async fn variable_for_user(
                 let err = errors::invalid_variable_type();
 
                 if let Err(event_err) = event_queue
-                    .queue_variable_defaulted_event(variable_key, "", "")
+                    .queue_variable_defaulted_event(variable_key.clone().as_str(), "", "")
                     .await
                 {
                     eprintln!("Failed to queue variable defaulted event: {}", event_err);
@@ -152,7 +173,7 @@ pub async fn variable_for_user(
             // Queue variable evaluated event
             if let Err(event_err) = event_queue
                 .queue_variable_evaluated_event(
-                    variable_key,
+                    variable_key.clone().as_str(),
                     &feature_id,
                     &variation_id,
                     eval_reason.clone(),
@@ -163,11 +184,14 @@ pub async fn variable_for_user(
             }
 
             Ok(VariableForUserResult {
+                variable_id,
+                variable_key,
                 variable_type,
                 variation_id,
                 variable_value,
                 feature_id,
                 eval_reason: Ok(eval_reason),
+                default_reason: String::new(),
             })
         }
         Err((err, eval_reason)) => {
@@ -182,11 +206,14 @@ pub async fn variable_for_user(
 
             // Return empty values with the evaluation reason from the error
             Ok(VariableForUserResult {
+                variable_id: String::new(),
+                variable_key: String::new(),
+                variation_id: String::new(),
                 variable_type: String::new(),
                 variable_value: serde_json::Value::Null,
-                variation_id: String::new(),
-                eval_reason: Err(err),
                 feature_id: String::new(),
+                eval_reason: Ok(eval_reason),
+                default_reason: default_reason.to_string(),
             })
         }
     }
