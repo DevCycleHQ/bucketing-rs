@@ -1,12 +1,17 @@
 name: Publish to crates.io
 on:
+  workflow_run:
+    workflows: [ "Release" ]
+    types: [ completed ]
   push:
-    tags: [ 'v*' ]  # Triggers when pushing tags starting with 'v'
+    tags:
+      - 'v*'
 
 jobs:
   publish:
+    # Run only if Release workflow succeeded (for workflow_run) or on tag pushes
+    if: ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || github.event_name == 'push' }}
     runs-on: ubuntu-latest
-    environment: release  # Optional: for enhanced security
     permissions:
       id-token: write     # Required for OIDC token exchange
     steps:
