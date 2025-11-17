@@ -61,6 +61,7 @@ jobs:
           sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" Cargo.toml
           echo "Updated Cargo.toml version to $VERSION"
           grep -m1 '^version' Cargo.toml
+          cargo update -w
 
       - name: Commit & push version bump
         if: ${{ inputs.draft != true }}
@@ -337,7 +338,7 @@ jobs:
         id: create-release
         with:
           github-token: ${{ secrets.AUTOMATION_USER_TOKEN }}
-          tag: ${{ needs.prepare.outputs.tag }}
+          tag: v${{ needs.prepare.outputs.tag }}
           target: main
           prerelease: ${{ inputs.prerelease }}
           draft: ${{ inputs.draft }}
