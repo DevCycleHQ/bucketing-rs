@@ -1,6 +1,6 @@
 [package]
 name = "devcycle-bucketing-rs"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 description = "DevCycle Bucketing Library in Rust"
 license = "MIT"
