@@ -1,0 +1,283 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: "Prerelease"
+        required: true
+        type: boolean
+        default: false
+      draft:
+        description: "Draft"
+        required: true
+        type: boolean
+        default: false
+      version-increment-type:
+        description: "Which part of the version to increment"
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+        default: patch
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Version Bump & Tag Preparation
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.prepare-release.outputs.next-release-tag }}
+      changelog: ${{ steps.prepare-release.outputs.changelog }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTOMATION_USER_TOKEN }}
+          fetch-depth: 0
+
+      - name: Prepare release
+        id: prepare-release
+        uses: DevCycleHQ/release-action/prepare-release@v2.3.0
+        with:
+          github-token: ${{ secrets.AUTOMATION_USER_TOKEN }}
+          prerelease: ${{ inputs.prerelease }}
+          draft: ${{ inputs.draft }}
+          version-increment-type: ${{ inputs.version-increment-type }}
+
+      - name: Update version in Cargo.toml
+        run: |
+          TAG='${{ steps.prepare-release.outputs.next-release-tag }}'
+          VERSION="${TAG#v}" 
+          # Replace first occurrence of version under [package]
+          perl -0777 -pi -e "s/(\[package\][^\[]*?version = ")([^"]+)(")/${1}${VERSION}${3}/" Cargo.toml
+          echo "Updated Cargo.toml version to $VERSION"
+          grep -m1 '^version' Cargo.toml
+
+      - name: Commit & push version bump
+        if: ${{ inputs.draft != true }}
+        run: |
+          git config user.email "foundation-admin@devcycle.com"
+          git config user.name "DevCycle Automation"
+          git add Cargo.toml
+          git commit -m "Release ${{ steps.prepare-release.outputs.next-release-tag }}"
+          git push origin HEAD:main
+
+  ffi:
+    name: FFI Build (${{ matrix.target }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            use_cross: false
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            use_cross: true
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            use_cross: true
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            use_cross: true
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            use_cross: false
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            use_cross: false
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            use_cross: false
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            use_cross: false
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install cbindgen
+        run: cargo install cbindgen --locked
+        shell: bash
+
+      - name: Install cross (if needed)
+        if: matrix.use_cross == true
+        run: cargo install cross --locked
+        shell: bash
+
+      - name: Build (FFI)
+        run: |
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            cross build --release --features ffi --target ${{ matrix.target }}
+          else
+            rustup target add ${{ matrix.target }} || true
+            cargo build --release --features ffi --target ${{ matrix.target }}
+          fi
+        shell: bash
+
+      - name: Generate C header
+        run: |
+          cbindgen --config cbindgen.toml --crate devcycle-bucketing-rs --output devcycle_bucketing.h
+        shell: bash
+
+      - name: Determine version
+        id: version
+        run: |
+          VERSION_LINE=$(grep -m1 '^version' Cargo.toml)
+          VERSION=$(echo "$VERSION_LINE" | sed -E 's/version = "([^"]+)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Package artifacts
+        run: |
+          set -e
+          TAG='${{ needs.prepare.outputs.tag }}'
+          VERSION='${{ steps.version.outputs.version }}'
+          TARGET='${{ matrix.target }}'
+          DIST="dist"
+          mkdir -p "$DIST"
+          cp devcycle_bucketing.h "$DIST/" || true
+          cp target/$TARGET/release/libdevcycle_bucketing_rs.* "$DIST/" 2>/dev/null || true
+          cp target/$TARGET/release/devcycle_bucketing_rs.* "$DIST/" 2>/dev/null || true
+          (cd "$DIST" && zip -r "devcycle-bucketing-rs-${TAG}-${TARGET}.zip" .)
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffi-${{ matrix.target }}
+          path: dist/devcycle-bucketing-rs-${{ needs.prepare.outputs.tag }}-${{ matrix.target }}.zip
+          if-no-files-found: error
+
+  wasm:
+    name: WASM Build
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: wasm-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: wasm-cargo-
+
+      - name: Install wasm-pack
+        run: |
+          curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+        shell: bash
+
+      - name: Build WASM variants
+        run: |
+          wasm-pack build --target web --features wasm --out-dir pkg-web
+          wasm-pack build --target nodejs --features wasm --out-dir pkg-node
+          wasm-pack build --target bundler --features wasm --out-dir pkg-bundler
+        shell: bash
+
+      - name: Package WASM artifacts
+        run: |
+          TAG='${{ needs.prepare.outputs.tag }}'
+          mkdir dist
+          cp -R pkg-web dist/ && cp -R pkg-node dist/ && cp -R pkg-bundler dist/
+          (cd dist && zip -r "devcycle-bucketing-rs-${TAG}-wasm.zip" pkg-web pkg-node pkg-bundler)
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm
+          path: dist/devcycle-bucketing-rs-${{ needs.prepare.outputs.tag }}-wasm.zip
+          if-no-files-found: error
+
+  create-release:
+    name: Create Release & Upload Assets
+    needs: [ prepare, ffi, wasm ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for GH CLI if needed)
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Compute checksums
+        run: |
+          cd artifacts
+          find . -name '*.zip' -exec shasum -a 256 {} \; > SHA256SUMS.txt
+        shell: bash
+
+      - name: Create release (DevCycle action)
+        uses: DevCycleHQ/release-action/create-release@v2.3.0
+        id: create-release
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ needs.prepare.outputs.tag }}
+          target: main
+          prerelease: ${{ inputs.prerelease }}
+          draft: ${{ inputs.draft }}
+          changelog: ${{ needs.prepare.outputs.changelog }}
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          files: |
+            artifacts/**/*.zip
+            artifacts/SHA256SUMS.txt
+          draft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          append_body: true
+          body: |
+            Additional artifacts attached.
+            Architectures:
+            - Linux: x86_64-gnu, aarch64-gnu, x86_64-musl, aarch64-musl
+            - macOS: x86_64, aarch64
+            - Windows: x86_64, aarch64
+            - WASM: web, nodejs, bundler
+            Checksums in SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
