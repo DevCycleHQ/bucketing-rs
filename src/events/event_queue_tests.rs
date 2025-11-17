@@ -444,10 +444,12 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("variable key is required"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("variable key is required")
+        );
     }
 
     #[tokio::test]

@@ -1,15 +1,15 @@
+use crate::config::ConfigBody;
 use crate::config::client_custom_data::get_client_custom_data;
 use crate::config::platform_data::PlatformData;
-use crate::config::ConfigBody;
 use crate::errors::DevCycleError;
 use crate::events::event::*;
 use crate::generate_bucketed_config;
 use crate::user::{PopulatedUser, User};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Duration;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 #[derive(Clone)]
 pub struct EventQueueOptions {

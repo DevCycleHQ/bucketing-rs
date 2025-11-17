@@ -145,7 +145,7 @@ pub fn set_config_data(sdk_key: String, config_json: String) -> Result<(), JsVal
             return Err(JsValue::from_str(&format!(
                 "Error creating config body: {}",
                 e
-            )))
+            )));
         }
     };
     crate::configmanager::set_config(&sdk_key, config_body);

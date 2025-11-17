@@ -23,8 +23,8 @@ pub(crate) use config::configmanager;
 pub(crate) use config::feature;
 // Re-export only what's needed for the public API
 pub use config::platform_data::*;
-pub use events::event::{DefaultReason, EvalDetails, EvaluationReason};
 pub use events::EventQueueOptions;
+pub use events::event::{DefaultReason, EvalDetails, EvaluationReason};
 pub(crate) use segmentation::filters;
 pub(crate) use segmentation::target;
 pub use user::BucketedUserConfig as BucketedConfig;
@@ -36,8 +36,8 @@ pub use util::errors::DevCycleError as Error;
 pub(crate) use util::murmurhash;
 
 use crate::bucketing::bucketing::VariableForUserResult;
-use crate::config::client_custom_data::get_client_custom_data;
 use crate::config::ConfigBody;
+use crate::config::client_custom_data::get_client_custom_data;
 
 pub async fn init_sdk_key(
     sdk_key: &str,

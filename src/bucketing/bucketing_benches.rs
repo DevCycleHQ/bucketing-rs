@@ -1,11 +1,11 @@
 use chrono::Utc;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use devcycle_bucketing_rs::EventQueueOptions;
 use devcycle_bucketing_rs::init_event_queue;
 use devcycle_bucketing_rs::user::PopulatedUser;
 use devcycle_bucketing_rs::variable_for_user;
-use devcycle_bucketing_rs::EventQueueOptions;
+use devcycle_bucketing_rs::{PlatformData, get_platform_data, set_platform_data};
 use devcycle_bucketing_rs::{generate_bucketed_config, set_client_custom_data};
-use devcycle_bucketing_rs::{get_platform_data, set_platform_data, PlatformData};
 use serde_json::Value;
 use std::collections::HashMap;
 

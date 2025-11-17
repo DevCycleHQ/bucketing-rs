@@ -588,7 +588,10 @@ impl UserFilter {
                                 bool_values.push(*val);
                             }
                             _ => {
-                                return Err(format!("Filter values must be all of the same type. Expected: bool, got: {:?}", value));
+                                return Err(format!(
+                                    "Filter values must be all of the same type. Expected: bool, got: {:?}",
+                                    value
+                                ));
                             }
                         }
                     }
@@ -603,7 +606,10 @@ impl UserFilter {
                                 string_values.push(val);
                             }
                             _ => {
-                                return Err(format!("Filter values must be all of the same type. Expected: string, got: {:?}", value));
+                                return Err(format!(
+                                    "Filter values must be all of the same type. Expected: string, got: {:?}",
+                                    value
+                                ));
                             }
                         }
                     }
@@ -618,7 +624,10 @@ impl UserFilter {
                                 num_values.push(val.as_f64().unwrap());
                             }
                             _ => {
-                                return Err(format!("Filter values must be all of the same type. Expected: number, got: {:?}", value));
+                                return Err(format!(
+                                    "Filter values must be all of the same type. Expected: number, got: {:?}",
+                                    value
+                                ));
                             }
                         }
                     }

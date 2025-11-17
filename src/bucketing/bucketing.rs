@@ -3,7 +3,7 @@ use crate::configmanager;
 use crate::constants;
 use crate::errors;
 use crate::errors::bucket_result_error_to_default_reason;
-use crate::errors::{missing_config, missing_variable, missing_variation, DevCycleError};
+use crate::errors::{DevCycleError, missing_config, missing_variable, missing_variation};
 use crate::events::event::{EvalDetails, EvaluationReason};
 use crate::murmurhash::murmurhash;
 use crate::target::*;

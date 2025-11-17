@@ -4,7 +4,7 @@ mod tests {
     use crate::config::*;
     use crate::configmanager;
     use crate::user::*;
-    use crate::{bucketing, EvaluationReason};
+    use crate::{EvaluationReason, bucketing};
     use chrono::Utc;
     use serde_json;
     use serde_json::Value;

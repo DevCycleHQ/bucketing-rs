@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::config::platform_data::{get_platform_data, set_platform_data, PlatformData};
+    use crate::config::platform_data::{PlatformData, get_platform_data, set_platform_data};
     use std::sync::Arc;
 
     #[test]
@@ -21,9 +21,11 @@ mod tests {
         let result = get_platform_data(sdk_key);
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("Platform data not set for SDK key"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("Platform data not set for SDK key")
+        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
+use crate::EvaluationReason;
 use crate::events::event::EvalDetails;
 use crate::target::Target;
-use crate::EvaluationReason;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
