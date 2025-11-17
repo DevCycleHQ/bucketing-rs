@@ -6,26 +6,6 @@ This library has been configured to build as:
 2. **C library (FFI)** - for use in C/C++ applications
 3. **WebAssembly (WASM)** - for use in web browsers and Node.js
 
-## Quick Start
-
-### Build All Variants
-
-```bash
-./build.sh all
-```
-
-Or build specific variants:
-
-```bash
-./build.sh rust    # Rust library only
-./build.sh ffi     # C library only
-./build.sh wasm    # WebAssembly only
-```
-
-## Outputs
-
-After building, you'll have:
-
 ### Rust Library
 
 - `target/release/libdevcycle_bucketing_rs.rlib` - Rust static library

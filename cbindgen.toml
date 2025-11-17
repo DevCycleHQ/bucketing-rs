@@ -14,8 +14,3 @@ include = ["devcycle_*"]
 [parse]
 parse_deps = false
 include = ["devcycle-bucketing-rs"]
-
-[parse.expand]
-crates = ["devcycle-bucketing-rs"]
-features = ["ffi"]
-

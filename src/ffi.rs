@@ -1,11 +1,6 @@
-// FFI (Foreign Function Interface) bindings for C library support
-#![cfg(feature = "ffi")]
-
 use crate::events::EventQueueOptions;
 use crate::user::{BucketedUserConfig, PopulatedUser, User};
 use once_cell::sync::Lazy;
-#[cfg(feature = "protobuf")]
-use prost::Message;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
@@ -33,7 +28,7 @@ pub enum DevCycleFFIErrorCode {
     Reserved8 = -8,
     /// Reserved for future use (was -9)
     Reserved9 = -9,
-    ProtobufDecodeFailed = -10,
+    Reserved10 = -10,
     /// Reserved for future use (was -11)
     Reserved11 = -11,
     /// Reserved for future use (was -12)
@@ -93,7 +88,6 @@ pub unsafe extern "C" fn devcycle_error_code_to_string(code: DevCycleFFIErrorCod
         DevCycleFFIErrorCode::ConfigBodyConversionFailed => "ConfigBodyConversionFailed",
         DevCycleFFIErrorCode::RuntimeUnavailable => "RuntimeUnavailable",
         DevCycleFFIErrorCode::OperationFailed => "OperationFailed",
-        DevCycleFFIErrorCode::ProtobufDecodeFailed => "ProtobufDecodeFailed",
         DevCycleFFIErrorCode::EventQueueInitFailed => "EventQueueInitFailed",
         DevCycleFFIErrorCode::InitSdkKeyFailed => "InitSdkKeyFailed",
         _ => "UnknownErrorCode",
@@ -486,71 +480,6 @@ pub unsafe extern "C" fn devcycle_set_config(
         Err(e) => {
             set_error(
                 format!("Failed to set config: {}", e),
-                DevCycleFFIErrorCode::OperationFailed,
-            );
-            DevCycleFFIErrorCode::OperationFailed as i32
-        }
-    }
-}
-
-/// Set config from protobuf bytes (serialized ConfigBodyProto)
-/// Returns 0 on success, non-zero on error
-/// Call devcycle_get_last_error() to get detailed error message
-#[cfg(feature = "protobuf")]
-#[no_mangle]
-pub unsafe extern "C" fn devcycle_set_config_from_protobuf(
-    sdk_key: *const c_char,
-    proto_bytes: *const u8,
-    len: usize,
-) -> i32 {
-    clear_last_error();
-
-    if proto_bytes.is_null() {
-        set_error(
-            "Protobuf bytes pointer is null".to_string(),
-            DevCycleFFIErrorCode::NullPointer,
-        );
-        return DevCycleFFIErrorCode::NullPointer as i32;
-    }
-
-    let sdk_key_str = match parse_sdk_key(sdk_key) {
-        Ok(s) => s,
-        Err(code) => return code as i32,
-    };
-
-    // Safety: we trust len provided by caller; create slice from raw pointer
-    let bytes_slice = std::slice::from_raw_parts(proto_bytes, len);
-
-    let proto_msg = match crate::protobuf::proto::ConfigBodyProto::decode(bytes_slice) {
-        Ok(m) => m,
-        Err(e) => {
-            set_error(
-                format!("Failed to decode protobuf bytes: {}", e),
-                DevCycleFFIErrorCode::ProtobufDecodeFailed,
-            );
-            return DevCycleFFIErrorCode::ProtobufDecodeFailed as i32;
-        }
-    };
-
-    let runtime = match get_runtime_or_set_error() {
-        Some(rt) => rt,
-        None => {
-            set_error(
-                "Runtime unavailable".to_string(),
-                DevCycleFFIErrorCode::RuntimeUnavailable,
-            );
-            return DevCycleFFIErrorCode::RuntimeUnavailable as i32;
-        }
-    };
-
-    match runtime.block_on(crate::set_config_from_protobuf(&sdk_key_str, proto_msg)) {
-        Ok(_) => {
-            set_last_error_code(DevCycleFFIErrorCode::Success);
-            0
-        }
-        Err(e) => {
-            set_error(
-                format!("Failed to set config from protobuf: {}", e),
                 DevCycleFFIErrorCode::OperationFailed,
             );
             DevCycleFFIErrorCode::OperationFailed as i32
@@ -1631,7 +1560,7 @@ pub unsafe extern "C" fn devcycle_queue_event(
     }
 }
 
-#[cfg(all(test, feature = "ffi"))]
+#[cfg(all(test, not(feature = "wasm")))]
 mod ffi_tests {
     use super::*;
     use std::ffi::CString;

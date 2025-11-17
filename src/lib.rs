@@ -10,17 +10,13 @@ pub(crate) mod segmentation;
 pub mod user;
 pub(crate) mod util;
 
-// FFI bindings for C library support
-#[cfg(feature = "ffi")]
+// FFI bindings for C library support (exclude when building for WASM)
+#[cfg(not(feature = "wasm"))]
 pub mod ffi;
 
 // WASM bindings for WebAssembly support
 #[cfg(feature = "wasm")]
 pub mod wasm;
-
-// Protobuf support
-#[cfg(feature = "protobuf")]
-pub mod protobuf;
 
 // Internal re-exports for convenience within the crate
 pub(crate) use config::configmanager;

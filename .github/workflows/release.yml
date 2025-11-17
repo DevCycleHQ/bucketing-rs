@@ -138,10 +138,10 @@ jobs:
       - name: Build (FFI)
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
-            cross build --release --features ffi --target ${{ matrix.target }}
+            cross build --release --target ${{ matrix.target }}
           else
             rustup target add ${{ matrix.target }} || true
-            cargo build --release --features ffi --target ${{ matrix.target }}
+            cargo build --release --target ${{ matrix.target }}
           fi
         shell: bash
 
@@ -211,9 +211,19 @@ jobs:
 
       - name: Build WASM variants
         run: |
-          wasm-pack build --target web --features wasm --out-dir pkg-web
-          wasm-pack build --target nodejs --features wasm --out-dir pkg-node
-          wasm-pack build --target bundler --features wasm --out-dir pkg-bundler
+          set -e
+          # Build web target
+          rm -rf pkg
+          wasm-pack build --target web --features wasm
+          mv pkg pkg-web
+          # Build node target
+          rm -rf pkg
+          wasm-pack build --target nodejs --features wasm
+          mv pkg pkg-node
+          # Build bundler target
+          rm -rf pkg
+          wasm-pack build --target bundler --features wasm
+          mv pkg pkg-bundler
         shell: bash
 
       - name: Package WASM artifacts
