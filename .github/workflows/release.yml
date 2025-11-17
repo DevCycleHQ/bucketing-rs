@@ -126,16 +126,24 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Install cbindgen
+      - name: Install cbindgen (Unix)
+        if: runner.os != 'Windows'
         run: cargo install cbindgen --locked
         shell: bash
 
+      - name: Install cbindgen (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo install cbindgen --locked
+        shell: pwsh
+
       - name: Install cross (if needed)
-        if: matrix.use_cross == true
+        if: matrix.use_cross == true && runner.os != 'Windows'
         run: cargo install cross --locked
         shell: bash
 
-      - name: Build (FFI)
+      - name: Build (FFI Unix)
+        if: runner.os != 'Windows'
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
             cross build --release --target ${{ matrix.target }}
@@ -145,12 +153,30 @@ jobs:
           fi
         shell: bash
 
-      - name: Generate C header
+      - name: Build (FFI Windows)
+        if: runner.os == 'Windows'
+        run: |
+          if ( "${{ matrix.use_cross }}" -eq "true" ) {
+            cross build --release --target ${{ matrix.target }}
+          } else {
+            rustup target add ${{ matrix.target }} 2>$null; cargo build --release --target ${{ matrix.target }}
+          }
+        shell: pwsh
+
+      - name: Generate C header (Unix)
+        if: runner.os != 'Windows'
         run: |
           cbindgen --config cbindgen.toml --crate devcycle-bucketing-rs --output devcycle_bucketing.h
         shell: bash
 
-      - name: Determine version
+      - name: Generate C header (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cbindgen --config cbindgen.toml --crate devcycle-bucketing-rs --output devcycle_bucketing.h
+        shell: pwsh
+
+      - name: Determine version (Unix)
+        if: runner.os != 'Windows'
         id: version
         run: |
           VERSION_LINE=$(grep -m1 '^version' Cargo.toml)
@@ -158,7 +184,17 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
         shell: bash
 
-      - name: Package artifacts
+      - name: Determine version (Windows)
+        if: runner.os == 'Windows'
+        id: version_win
+        run: |
+          $versionLine = (Select-String -Pattern '^version' -Path Cargo.toml -First 1).Line
+          $version = ($versionLine -replace 'version = "([^"]+)"','$1')
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        shell: pwsh
+
+      - name: Package artifacts (Unix)
+        if: runner.os != 'Windows'
         run: |
           set -e
           TAG='${{ needs.prepare.outputs.tag }}'
@@ -169,8 +205,46 @@ jobs:
           cp devcycle_bucketing.h "$DIST/" || true
           cp target/$TARGET/release/libdevcycle_bucketing_rs.* "$DIST/" 2>/dev/null || true
           cp target/$TARGET/release/devcycle_bucketing_rs.* "$DIST/" 2>/dev/null || true
-          (cd "$DIST" && zip -r "devcycle-bucketing-rs-${TAG}-${TARGET}.zip" .)
+          echo "Packaging artifacts for $TARGET using available compression tool"
+          if command -v zip >/dev/null 2>&1; then
+            (cd "$DIST" && zip -r "devcycle-bucketing-rs-${TAG}-${TARGET}.zip" .)
+          else
+            echo "zip not found; attempting 7z fallback"
+            if command -v 7z >/dev/null 2>&1; then
+              (cd "$DIST" && 7z a -tzip "devcycle-bucketing-rs-${TAG}-${TARGET}.zip" . > /dev/null)
+            else
+              echo "Neither zip nor 7z available; failing build" >&2
+              exit 1
+            fi
+          fi
         shell: bash
+
+      - name: Package artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag='${{ needs.prepare.outputs.tag }}'
+          $version='${{ steps.version_win.outputs.version }}'
+          $target='${{ matrix.target }}'
+          $dist='dist'
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          Copy-Item devcycle_bucketing.h -Destination $dist -ErrorAction SilentlyContinue
+          Get-ChildItem -Path "target/$target/release" -Filter 'libdevcycle_bucketing_rs.*' -ErrorAction SilentlyContinue | Copy-Item -Destination $dist -ErrorAction SilentlyContinue
+          Get-ChildItem -Path "target/$target/release" -Filter 'devcycle_bucketing_rs.*' -ErrorAction SilentlyContinue | Copy-Item -Destination $dist -ErrorAction SilentlyContinue
+          Write-Host "Packaging artifacts for $target using available compression tool"
+          if (Get-Command zip -ErrorAction SilentlyContinue) {
+            Push-Location $dist
+            zip -r "devcycle-bucketing-rs-$tag-$target.zip" .
+            Pop-Location
+          } elseif (Get-Command 7z -ErrorAction SilentlyContinue) {
+            Push-Location $dist
+            7z a -tzip "devcycle-bucketing-rs-$tag-$target.zip" * | Out-Null
+            Pop-Location
+          } else {
+            Write-Error "Neither zip nor 7z available; failing build"
+            exit 1
+          }
+        shell: pwsh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

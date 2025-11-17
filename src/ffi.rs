@@ -61,7 +61,7 @@ fn clear_last_error() {
 /// Get the last error message from FFI operations
 /// Returns a C string that must be freed with devcycle_free_string
 /// Returns null if there is no error
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_get_last_error() -> *mut c_char {
     LAST_ERROR.with(|last| match &*last.borrow() {
         Some(err) => match CString::new(err.clone()) {
@@ -72,12 +72,12 @@ pub unsafe extern "C" fn devcycle_get_last_error() -> *mut c_char {
     })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_get_last_error_code() -> DevCycleFFIErrorCode {
     LAST_ERROR_CODE.with(|c| *c.borrow())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_error_code_to_string(code: DevCycleFFIErrorCode) -> *mut c_char {
     let s = match code {
         DevCycleFFIErrorCode::Success => "Success",
@@ -226,7 +226,7 @@ unsafe fn parse_sdk_key(sdk_key: *const c_char) -> Result<String, DevCycleFFIErr
 /// Initialize event queue
 /// Returns 0 on success, non-zero on error
 /// Call devcycle_get_last_error() to get detailed error message
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_init_event_queue(
     sdk_key: *const c_char,
     options: *const CEventQueueOptions,
@@ -274,7 +274,7 @@ pub unsafe extern "C" fn devcycle_init_event_queue(
 /// Generate bucketed config from populated user
 /// Returns pointer to CBucketedUserConfig on success, null on error
 /// Call devcycle_get_last_error() to get detailed error message
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_generate_bucketed_config(
     sdk_key: *const c_char,
     user: *const CPopulatedUser,
@@ -352,7 +352,7 @@ pub unsafe extern "C" fn devcycle_generate_bucketed_config(
 /// Generate bucketed config from user
 /// Returns pointer to CBucketedUserConfig on success, null on error
 /// Call devcycle_get_last_error() to get detailed error message
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_generate_bucketed_config_from_user(
     sdk_key: *const c_char,
     user: *const CUser,
@@ -406,7 +406,7 @@ pub unsafe extern "C" fn devcycle_generate_bucketed_config_from_user(
 /// Set config from JSON string
 /// Returns 0 on success, non-zero on error
 /// Call devcycle_get_last_error() to get detailed error message
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_set_config(
     sdk_key: *const c_char,
     config_json: *const c_char,
@@ -490,7 +490,7 @@ pub unsafe extern "C" fn devcycle_set_config(
 /// Set client custom data from JSON string
 /// Returns 0 on success, non-zero on error
 /// Call devcycle_get_last_error() to get detailed error message
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_set_client_custom_data(
     sdk_key: *const c_char,
     custom_data_json: *const c_char,
@@ -562,7 +562,7 @@ pub unsafe extern "C" fn devcycle_set_client_custom_data(
 /// Set platform data from JSON string
 /// Returns 0 on success, non-zero on error
 /// Call devcycle_get_last_error() to get detailed error message
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_set_platform_data(
     sdk_key: *const c_char,
     platform_data_json: *const c_char,
@@ -624,7 +624,7 @@ pub unsafe extern "C" fn devcycle_set_platform_data(
 /// This is a convenience function that calls set_config, init_event_queue, set_client_custom_data, and set_platform_data
 /// Returns 0 on success, non-zero on error
 /// Call devcycle_get_last_error() to get detailed error message
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_init_sdk_key(
     sdk_key: *const c_char,
     config_json: *const c_char,
@@ -775,7 +775,7 @@ pub unsafe extern "C" fn devcycle_init_sdk_key(
 /// Get variable value for a user
 /// Returns pointer to CVariableForUserResult on success, null on error
 /// Call devcycle_get_last_error() to get detailed error message
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_variable_for_user(
     sdk_key: *const c_char,
     user: *const CPopulatedUser,
@@ -844,7 +844,7 @@ pub unsafe extern "C" fn devcycle_variable_for_user(
 
 /// Get JSON representation of variable for user result
 /// Returns a C string that must be freed with devcycle_free_string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_variable_result_to_json(
     result: *const CVariableForUserResult,
 ) -> *mut c_char {
@@ -882,7 +882,7 @@ pub unsafe extern "C" fn devcycle_variable_result_to_json(
 
 /// Get variable type from result
 /// Returns a C string that must be freed with devcycle_free_string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_variable_result_get_type(
     result: *const CVariableForUserResult,
 ) -> *mut c_char {
@@ -911,7 +911,7 @@ pub unsafe extern "C" fn devcycle_variable_result_get_type(
 
 /// Get JSON representation of bucketed config
 /// Returns a C string that must be freed with devcycle_free_string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_bucketed_config_to_json(
     config: *const CBucketedUserConfig,
 ) -> *mut c_char {
@@ -948,7 +948,7 @@ pub unsafe extern "C" fn devcycle_bucketed_config_to_json(
 }
 
 /// Free a variable for user result
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_free_variable_result(result: *mut CVariableForUserResult) {
     if !result.is_null() {
         let _ = Box::from_raw(result);
@@ -956,7 +956,7 @@ pub unsafe extern "C" fn devcycle_free_variable_result(result: *mut CVariableFor
 }
 
 /// Free a C string returned by this library
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_free_string(s: *mut c_char) {
     if !s.is_null() {
         let _ = CString::from_raw(s);
@@ -964,7 +964,7 @@ pub unsafe extern "C" fn devcycle_free_string(s: *mut c_char) {
 }
 
 /// Free a bucketed config
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_free_bucketed_config(config: *mut CBucketedUserConfig) {
     if !config.is_null() {
         let _ = Box::from_raw(config);
@@ -972,7 +972,7 @@ pub unsafe extern "C" fn devcycle_free_bucketed_config(config: *mut CBucketedUse
 }
 
 /// Free a user
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_free_user(user: *mut CUser) {
     if !user.is_null() {
         let _ = Box::from_raw(user);
@@ -980,7 +980,7 @@ pub unsafe extern "C" fn devcycle_free_user(user: *mut CUser) {
 }
 
 /// Free a populated user
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_free_populated_user(user: *mut CPopulatedUser) {
     if !user.is_null() {
         let _ = Box::from_raw(user);
@@ -988,7 +988,7 @@ pub unsafe extern "C" fn devcycle_free_populated_user(user: *mut CPopulatedUser)
 }
 
 /// Free event queue options
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_free_event_queue_options(options: *mut CEventQueueOptions) {
     if !options.is_null() {
         let _ = Box::from_raw(options);
@@ -996,7 +996,7 @@ pub unsafe extern "C" fn devcycle_free_event_queue_options(options: *mut CEventQ
 }
 
 /// Create user from JSON string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_user_from_json(json: *const c_char) -> *mut CUser {
     clear_last_error();
     if json.is_null() {
@@ -1035,7 +1035,7 @@ pub unsafe extern "C" fn devcycle_user_from_json(json: *const c_char) -> *mut CU
 
 /// Create a populated user from a user and sdk key
 /// Returns pointer to CPopulatedUser on success, null on error
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_populate_user(
     sdk_key: *const c_char,
     user: *const CUser,
@@ -1060,7 +1060,7 @@ pub unsafe extern "C" fn devcycle_populate_user(
 
 /// Merge client custom data JSON into an existing populated user (adds keys if not already present)
 /// Returns 0 on success, non-zero on error
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_populated_user_merge_client_custom_data(
     populated_user: *mut CPopulatedUser,
     client_custom_data_json: *const c_char,
@@ -1108,7 +1108,7 @@ pub unsafe extern "C" fn devcycle_populated_user_merge_client_custom_data(
 
 /// Get feature id from a variable result
 /// Returns a C string that must be freed with devcycle_free_string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_variable_result_get_feature_id(
     result: *const CVariableForUserResult,
 ) -> *mut c_char {
@@ -1137,7 +1137,7 @@ pub unsafe extern "C" fn devcycle_variable_result_get_feature_id(
 
 /// Get variation id from a variable result
 /// Returns a C string that must be freed with devcycle_free_string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_variable_result_get_variation_id(
     result: *const CVariableForUserResult,
 ) -> *mut c_char {
@@ -1166,7 +1166,7 @@ pub unsafe extern "C" fn devcycle_variable_result_get_variation_id(
 
 /// Get evaluation reason from a variable result ("ERROR" if error)
 /// Returns a C string that must be freed with devcycle_free_string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_variable_result_get_evaluation_reason(
     result: *const CVariableForUserResult,
 ) -> *mut c_char {
@@ -1198,7 +1198,7 @@ pub unsafe extern "C" fn devcycle_variable_result_get_evaluation_reason(
 }
 
 /// Check if variable result contains an error (returns 1 if error, 0 otherwise)
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_variable_result_is_error(
     result: *const CVariableForUserResult,
 ) -> i32 {
@@ -1223,7 +1223,7 @@ pub unsafe extern "C" fn devcycle_variable_result_is_error(
 
 /// Get error message from variable result (null if no error)
 /// Returns C string that must be freed with devcycle_free_string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_variable_result_get_error(
     result: *const CVariableForUserResult,
 ) -> *mut c_char {
@@ -1258,7 +1258,7 @@ pub unsafe extern "C" fn devcycle_variable_result_get_error(
 
 /// Get a full JSON representation of the variable result including metadata
 /// Returns C string that must be freed with devcycle_free_string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_variable_result_to_full_json(
     result: *const CVariableForUserResult,
 ) -> *mut c_char {
@@ -1325,7 +1325,7 @@ fn parse_event_type(s: &str) -> Option<crate::events::event::EventType> {
 /// Returns 0 on success, non-zero (DevCycleFFIErrorCode) on error. Use devcycle_get_last_error() for message.
 /// event_type: one of the supported EventType strings (e.g., "CustomEvent"). For manual custom events use "CustomEvent".
 /// meta_data_json: JSON object string for metadata (may be null for empty)
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn devcycle_queue_event(
     sdk_key: *const c_char,
     user_json: *const c_char,
