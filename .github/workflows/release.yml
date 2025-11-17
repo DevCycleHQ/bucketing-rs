@@ -56,9 +56,9 @@ jobs:
       - name: Update version in Cargo.toml
         run: |
           TAG='${{ steps.prepare-release.outputs.next-release-tag }}'
-          VERSION="${TAG#v}" 
-          # Replace first occurrence of version under [package]
-          perl -0777 -pi -e "s/(\[package\][^\[]*?version = ")([^"]+)(")/${1}${VERSION}${3}/" Cargo.toml
+          VERSION="${TAG#v}" # strip leading v
+          # Replace version line under [package] using sed (simple & readable)
+          sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" Cargo.toml
           echo "Updated Cargo.toml version to $VERSION"
           grep -m1 '^version' Cargo.toml
 
