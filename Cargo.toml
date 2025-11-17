@@ -2,7 +2,8 @@
 name = "devcycle-bucketing-rs"
 version = "0.1.0"
 edition = "2024"
-
+description = "DevCycle Bucketing Library in Rust"
+license = "MIT"
 [lib]
 # Support multiple crate types for different targets
 crate-type = ["rlib", "cdylib", "staticlib"]
