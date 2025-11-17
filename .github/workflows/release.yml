@@ -68,6 +68,7 @@ jobs:
           git config user.email "foundation-admin@devcycle.com"
           git config user.name "DevCycle Automation"
           git add Cargo.toml
+          git add Cargo.lock
           git commit -m "Release ${{ steps.prepare-release.outputs.next-release-tag }}"
           git push origin HEAD:main
 
@@ -335,7 +336,7 @@ jobs:
         uses: DevCycleHQ/release-action/create-release@v2.3.0
         id: create-release
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.AUTOMATION_USER_TOKEN }}
           tag: ${{ needs.prepare.outputs.tag }}
           target: main
           prerelease: ${{ inputs.prerelease }}
